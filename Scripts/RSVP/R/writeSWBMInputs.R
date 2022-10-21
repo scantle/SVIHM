@@ -14,7 +14,13 @@
 #' @return None
 #' @export
 #'
-#' @examples
+#' @examples write_SWBM_drain_files(num_stress_periods=336,
+#' @examples output_dir = getwd(),
+#' @examples values = NULL,
+#' @examples drains_filename = "Drains_m3day.txt",
+#' @examples init_filename = "Drains_initial_m3day.txt",
+#' @examples verbose = TRUE)
+#'
 write_SWBM_drain_files <- function(num_stress_periods,
                                    output_dir,
                                    values=NULL,
