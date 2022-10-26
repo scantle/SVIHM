@@ -46,8 +46,10 @@ kc_grain   <- gen_daily_curve_crop_coefficients(model_start_date, model_end_date
 write_SWBM_gen_inputs_file(num_stress_periods = num_stress_periods, output_dir = update_dir)
 
 # Stress Period Days file
-write.table(num_days, file = file.path(update_dir, "stress_period_days.txt"),
-            sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+# Include stress period # and column names in input file
+num_days_tab = data.frame("stress_period" = 1:num_stress_periods, ndays = num_days)
+write.table(num_days_tab, file = file.path(update_dir, "stress_period_days.txt"),
+            sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
 # Drains
 write_SWBM_drain_files(num_stress_periods = num_stress_periods, output_dir = update_dir)
