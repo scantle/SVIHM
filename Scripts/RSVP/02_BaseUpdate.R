@@ -40,6 +40,8 @@ kc_alfalfa <- gen_daily_binary_crop_coefficients(model_start_date, model_end_dat
 kc_pasture <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date)
 kc_grain   <- gen_daily_curve_crop_coefficients(model_start_date, model_end_date)
 
+sfr_subws_flow_partitioning = gen_monthly_sfr_flow_partition(model_start_date, model_end_date)
+
 # Write SWBM Inputs -------------------------------------------------------
 
 # Main input file
@@ -61,6 +63,9 @@ write_SWBM_instream_available_file(avail_monthly, output_dir = update_dir)
 write_SWBM_crop_coefficient_file(kc_alfalfa, update_dir, 'kc_alfalfa.txt')
 write_SWBM_crop_coefficient_file(kc_pasture, update_dir, 'kc_pasture.txt')
 write_SWBM_crop_coefficient_file(kc_grain,   update_dir, 'kc_grain.txt')
+
+# Surface flow / SFR files
+write_SWBM_SFR_files(sfr_subws_flow_partitioning, update_dir, "SFR_subws_flow_partitioning.txt")
 
 # ------------------------------------------------------------------------------------------------#
 
