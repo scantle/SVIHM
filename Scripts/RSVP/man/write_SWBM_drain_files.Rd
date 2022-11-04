@@ -34,7 +34,11 @@ None
 Write SWBM Drains Input Files (Drain_m3day.txt, Drains_initial_m3day.txt)
 }
 \examples{
-write_SWBM_drain_files(num_stress_periods=336,output_dir=getwd(),values = NULL,
-drains_filename = "Drains_m3day.txt",init_filename = "Drains_initial_m3day.txt",verbose = TRUE)
+write_SWBM_drain_files(num_stress_periods=336,
+output_dir = getwd(),
+values = NULL,
+drains_filename = "Drains_m3day.txt",
+init_filename = "Drains_initial_m3day.txt",
+verbose = TRUE)
 
 }

@@ -68,7 +68,7 @@ write_SWBM_drain_files <- function(num_stress_periods,
 #' @export
 #'
 #' @examples
-write_SWBM_gen_inputs_file <- function(num_stress_periods,
+write_SWBM_gen_inputs_file_orig <- function(num_stress_periods,
                                        output_dir,
                                        filename="general_inputs.txt",
                                        recharge_scenario="Basecase",
@@ -105,6 +105,64 @@ write_SWBM_gen_inputs_file <- function(num_stress_periods,
           sep = "  "),
     paste(landuse_scenario, "! Basecase/Major_NatVeg")
   )
+
+  if (verbose) {message(paste('Writing SWBM file: ', filename))}
+  write.table(gen_inputs, file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+}
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Write SWBM General Inputs File
+#'
+#' Writes all basecase values by default
+#'
+#' @param num_stress_periods Number of model stress periods
+#' @param output_dir directory to write the files to
+#' @param filename general input filename, general_inputs.txt by default
+#' @param recharge_scenario character
+#' @param flow_scenario character
+#' @param alf_irr_stop_mo integer Calendar month
+#' @param alf_irr_stop_day integer
+#' @param early_cutoff_flag character
+#' @param curtailment_scenario character
+#' @param curtail_start_mo integer
+#' @param curtail_start_day integer
+#' @param landuse_scenario character
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None
+#' @export
+#'
+#' @examples
+write_SWBM_gen_inputs_file <- function(output_dir,
+                                       num_stress_periods,
+                                       filename="general_inputs.txt",
+                                       modelName = "SVIHM",
+                                       WYstart = 1991,
+                                       npoly = 2119,
+                                       nlandcover = 4,
+                                       nAgWells = 167,
+                                       nMuniWells = 0,
+                                       nSubws = 9,
+                                       inflow_is_vol = TRUE,
+                                       nSFR_inflow_segs = 13,
+                                       nrows = 440,
+                                       ncols = 210,
+                                       RD_Mult = 1.4,
+                                       calib_software = "UCODE",
+                                       verbose=TRUE) {
+
+
+  gen_inputs = c(
+    paste(modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws,
+          "! modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws",
+          sep = "  "),
+    paste(inflow_is_vol, nSFR_inflow_segs, num_stress_periods, nrows, ncols,
+          "! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols",
+          sep = "  "),
+    paste(RD_Mult, calib_software, "! RD_Mult, UCODE/PEST",
+          sep = "  ") )
 
   if (verbose) {message(paste('Writing SWBM file: ', filename))}
   write.table(gen_inputs, file = file.path(output_dir, filename),
@@ -186,17 +244,6 @@ write_SWBM_SFR_files <- function(sfr_component, output_dir, filename, verbose=TR
                 sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
 
   }
-
-
-  # expand sfr_part to monthly values
-  # format
-
-  kc_df$day <- format(kc_df$Date, '%d/%m/%Y')
-  kc_df$kc = round(kc_df$kc, 4)
-
-  write.table(kc_df[,c('kc','day')],
-              file = file.path(output_dir, filename),
-              sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
 }
 
 #-------------------------------------------------------------------------------------------------#
