@@ -502,3 +502,49 @@ write_swbm_precip_input_file <- function(p_record,
 }
 
 #-------------------------------------------------------------------------------------------------#
+
+#' Write SWBM Precipitation Factor File
+#'
+#' Writes the Soil Water Balance Model (SWBM) precipitation factor file (precip_factors.txt).
+#' Consists of one factor per land use polygon (field). Is used to multiply the daily precip
+#' value to implement spatial precipitation gradients.
+#'
+#' @param poly_filename Filename containing table of land use polygons
+#' @param rainfall_records Dataframe containingb
+#' @param rainfall_locations Dataframe containing locations for each rainfall record (includes
+#' public weather station data and date collected from private gauges).
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None
+#' @author Leland Scantlebury
+#' @export
+#'
+#' @examples
+write_swbm_precip_factor_file <- function(p_record,
+                                         output_dir,
+                                         merge_dataset=NULL,
+                                         filename="precip_regressed.txt",
+                                         verbose=TRUE){
+
+  daily_precip_updated = data.frame(PRCP = p_record$stitched, Date = p_record$Date)
+
+  if (!is.null(merge_dataset)) {
+    #TODO Test
+    if(!"PRCP" %in% colnames(merge_dataset))
+    {
+      stop('Merge Dataset missing PRCP column')
+    }
+    p_record <- merge(x = p_record, y = merge_dataset, by.x = "Date", by.y = "Date", all=TRUE)
+    p_record[!is.na(p_record$PRCP),'stitched'] <- p_record[!is.na(p_record$PRCP), 'PRCP']
+  }
+
+  daily_precip_updated$Date <- format(daily_precip_updated$Date, '%d/%m/%Y')
+  daily_precip_updated$PRCP = as.character(daily_precip_updated$PRCP / 1000) #convert to meters
+
+  if (verbose) {message(paste('Writing file: ', filename))}
+  write.table(daily_precip_updated, file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+
+}
+
+#-------------------------------------------------------------------------------------------------#
