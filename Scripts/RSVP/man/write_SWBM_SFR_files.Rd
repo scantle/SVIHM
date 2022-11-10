@@ -7,8 +7,10 @@
 write_SWBM_SFR_files(sfr_component, output_dir, filename, verbose = TRUE)
 }
 \arguments{
-\item{sfr_component}{Dataframe of months and subwatershed inflow partition fractions (see
-\code{\link{gen_monthly_sfr_flow_partition}})}
+\item{sfr_component}{Dataframe of months and either: 1) subwatershed inflow partition
+fractions (see \code{\link{gen_monthly_sfr_flow_partition}}), or 2) inflows available
+for irrigation, or 3) inflows NOT available for irrigation (e.g. reserved for environmental
+flows) (for items 2 and 3 see \code{\link{process_monthly_sfr_inflows}}).}
 
 \item{output_dir}{directory to write the files to}
 

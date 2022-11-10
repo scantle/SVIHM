@@ -222,10 +222,12 @@ write_SWBM_crop_coefficient_file <- function(kc_df, output_dir, filename, verbos
 
 #' Write SWBM File Partitioning Subwatershed Surface Flows to Stream Inflows
 #'
-#' @param sfr_component Dataframe of months and subwatershed inflow partition fractions (see
-#'   \code{\link{gen_monthly_sfr_flow_partition}})
+#' @param sfr_component Dataframe of months and either: 1) subwatershed inflow partition
+#' fractions (see \code{\link{gen_monthly_sfr_flow_partition}}), or 2) inflows available
+#' for irrigation, or 3) inflows NOT available for irrigation (e.g. reserved for environmental
+#' flows) (for items 2 and 3 see \code{\link{process_monthly_sfr_inflows}}).
 #' @param output_dir directory to write the files to
-#' @param filename
+#' @param filename Writes to this filename
 #' @param verbose T/F write status info to console (default: TRUE)
 #'
 #' @return
@@ -233,17 +235,61 @@ write_SWBM_crop_coefficient_file <- function(kc_df, output_dir, filename, verbos
 #'
 #' @examples
 #'
-write_SWBM_SFR_files <- function(sfr_component, output_dir, filename, verbose=TRUE) {
+write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, verbose=TRUE) {
   if (verbose) {message(paste('Writing SWBM SFR Handling file: ', filename))}
 
-  if(filename=="SFR_subws_flow_partitioning.txt"){
+  # if(filename=="SFR_subws_flow_partitioning.txt"){
     sfr_component$modelMonth <- as.character(format(x = sfr_component$modelMonth, format= '%b-%Y'))
 
     write.table(sfr_component,
                 file = file.path(output_dir, filename),
                 sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
 
-  }
+  # }
+
+
 }
 
 #-------------------------------------------------------------------------------------------------#
+
+#' Write SFR Diversions File
+#'
+#' Generates text file specifying the number, stream segment, priority handling (in MODFLOW), and
+#' unchanging flowrate of each diversion point in the stream network.
+#' Default is currently (Nov 2022) configured to specify diversion points for the SVID ditch and
+#' Farmers ditch, with 0 flow in them (as ditch diversions are currently  handled in a
+#' separate module).
+#'
+#' @param num_divs Number of diversions in the stream network
+#' @param iseg_for_divs The stream segment associated with each diversion
+#' @param iprior_for_divs Specifies priority handling for diversion in MODFLOW.
+#' @param flow_for_divs Uniform flowrate for the diversion.
+#'
+#' @return
+#' @author Claire Kouba, Leland Scantlebury
+#' @export
+#'
+#' @examples
+
+write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
+                                           output_dir,
+                                           num_divs = 2,
+                                           iseg_for_divs = c(3,10), # Stream segment of diversion
+                                           iprior_for_divs = c(0,0), # Modflow param. for calc.
+                                           flow_for_divs = c(0,0)) {    # Flowrate (units? cfs?)
+
+  sfr_divs = c(
+    paste(num_divs, "    ! Number of diversions", sep = "  "),
+    paste(paste(iseg_for_divs, collapse = "  "), "    ! ISEG for diversions",
+          sep = "  "),
+    paste(paste(iprior_for_divs, collapse = "  "), "    ! IPRIOR for diversions",
+          sep = "  "),
+    paste(paste(flow_for_divs, collapse = "  "), "    ! FLOW for diversions",
+          sep = "  "))
+
+  if (verbose) {message(paste('Writing SWBM file: ', filename))}
+  write.table(sfr_divs, file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+
+}
+

@@ -1,8 +1,12 @@
 #-------------------------------------------------------------------------------------------------#
 
-#' Generate Daily Binary Crop Coefficients (Kc)
+#' Generate Monthly SFR Inflow Partition
 #'
-#' Currently used for alfalfa and pasture. Binary coefficients for growing/dormant.
+#' Inflow to the model domain is often measured downstream of the domain boundary.
+#' The upstream inflow may enter the domain on multiple forks/inflow points.
+#' This partitioning assigns a fraction of the flow in each subwatershed to
+#' different inflow points. Inflow points are assigned to subwatersheds in file
+#' SFR_inflow_segments.txt.
 #'
 #' @param model_start_date Start date of model
 #' @param model_end_date End date of model
@@ -56,4 +60,66 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
 
   return(sfr_part_tab)
 }
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Process Monthly SFR Irrigation Inflows
+#'
+#' Generates table of monthly stream inflow volumes that are either available for irrigation
+#' purposes or are unavailable for irrigation (i.e., flows reserved for environmental uses).
+#'
+#' @param model_start_date Start date of model
+#' @param model_end_date End date of model
+#' @param stream_inflow_filename Filename of the gap-filled tributary flow records for each
+#' subwatershed (see \code{\link{write_tributary_input_file}}).
+#' @param avail_for_irr Boolean. Writes the file "subwatershed_irrigation_inflows.txt" if TRUE
+#' and the file "subwatershed_nonirrigation_inflows.txt" if FALSE.
+#' @param instream_flow_regime Date frame of start- and end-dates and flow values
+#' describing an annual instream flow regime. If NA, produces a 0-flow nonirrigation inflows
+#' table or passes 100% of inflow to the irrigation inflows table.
+#' @param instream_flow_units Handles "cfs", "cms" or "m3day". Defaults to NA.
+#'
+#' @return
+#' @author Claire Kouba, Leland Scantlebury
+#' @export
+#'
+#' @examples
+process_monthly_sfr_inflows <- function(model_start_date,
+                                    model_end_date,
+                                    stream_inflow_filename,
+                                    avail_for_irr = T,
+                                    instream_flow_regime = NA) {
+
+  model_months = seq(from = model_start_date, to = model_end_date, by = "months")
+
+  # Read tributary streamflow inputs from file
+  subws_inflow = read.table(stream_inflow_filename, header = T)
+  colnames(subws_inflow)[colnames(subws_inflow) == "Month"] = "modelMonth"
+
+  if(avail_for_irr){ # If writing the subwatershed_irrigation_inflows.txt file
+    # If no instream flow regime available, make all inflows available for irrigation
+    if(is.na(instream_flow_regime)){
+      sfr_inflow_tab = subws_inflow
+    } else {
+      # Process sfr_inflow_tab by subtracting reserved flows from sfr_inflows
+
+    }
+
+  } else if(avail_for_irr == FALSE) { # If writing the subwatershed_nonirrigation_inflows.txt file
+    if(is.na(instream_flow_regime)){
+      # If no instream flow regime available, reserve no inflows
+      sfr_inflow_tab = subws_inflow
+      flow_columns = grepl(pattern = "Flow", x = colnames(sfr_inflow_tab), ignore.case = T)
+      # Set all monthly reserved flow volumes to 0
+      sfr_inflow_tab[,flow_columns] = 0
+    } else {
+      # process the inflow regime to produce monthly flow volumes for each tributary
+
+    }
+
+  }
+
+  return(sfr_inflow_tab)
+}
+
 
