@@ -2,7 +2,7 @@
 % Please edit documentation in R/SWBM_SFR_files.R
 \name{process_monthly_sfr_inflows}
 \alias{process_monthly_sfr_inflows}
-\title{Generate Monthly SFR Irrigation Inflows}
+\title{Process Monthly SFR Irrigation Inflows}
 \usage{
 process_monthly_sfr_inflows(
   model_start_date,

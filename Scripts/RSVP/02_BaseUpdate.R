@@ -32,6 +32,9 @@ fjd <- read.csv(file.path(update_dir, list.files(update_dir, pattern = 'FJ (USGS
                           stringsAsFactors = F)
 fjd$Date <- as.Date(fjd$Date)
 
+# Precip factors.
+precip_factors = calc_swbm_spatial_precip_factors()
+
 # avail_monthly <- build_cdfw_instream_flow_cal(model_start_date = model_start_date,
 #                                               model_end_date = model_end_date,
 #                                               fort_jones_flows = fjd)
@@ -78,6 +81,8 @@ write_SWBM_SFR_inflow_files(subws_irr_inflows, update_dir, "subwatershed_irrigat
 write_SWBM_SFR_inflow_files(subws_nonirr_inflows, update_dir, "subwatershed_nonirrigation_inflows.txt")
 write_SWBM_SFR_diversions_file(output_dir = update_dir)
 
+# Precip factors
+write_swbm_precip_factor_file(output_dir = update_dir, precip_factors_df = precip_factors)
 # ------------------------------------------------------------------------------------------------#
 
 # Write MODFLOW Inputs ----------------------------------------------------
