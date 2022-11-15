@@ -161,3 +161,160 @@ write_SWBM_crop_coefficient_file <- function(kc_df, output_dir, filename, verbos
 }
 
 #-------------------------------------------------------------------------------------------------#
+
+#' Build Field-value Data Frame
+#'
+#' Empty dataframe of field-level values, for every month between the start and end dates. This
+#' format is common to many temporal SWBM inputs
+#'
+#' @param nfields number of fields in the Soil Water Balance Model simulation
+#' @param model_start_date Start date of simulation
+#' @param model_end_date End date of simulation
+#' @param default_values Default values, given by field (optional, defaults to NA)
+#'
+#' @return Dataframe of stress periods (rows) for each field (columns)
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_lu <- rep(swbm_lutype['Alfalfa','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_lu)
+#'
+swbm_build_field_value_df <- function(nfields, model_start_date, model_end_date, default_values=NA) {
+
+  # Define Stress Periods & IDs
+  vect_sp <- seq.Date(model_start_date, model_end_date, by='month')
+  id_list <- paste0("ID_", 1:nfields)
+
+  # Error check
+  if (!is.na(default_values) & (!length(default_values) == length(id_list))) {
+    stop('Default value list must be same length as # of fields in poly_table')
+  }
+
+  # Create dataframe of irrigation types for each field (columns) for each stress period (rows)
+  df <- data.frame(matrix(default_values,
+                          nrow=length(vect_sp),
+                          ncol=length(id_list),
+                          byrow = T))
+  colnames(df) <- id_list # assign column names
+  df$Stress_Period <- vect_sp
+
+  #-- Stress period column first
+  df <- df[c('Stress_Period', names(df)[names(df) != 'Stress_Period'])]
+
+  return(df)
+}
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Update Land Use Table With New Data
+#'
+#' @param lu_df Dataframe of field land uses for each stress period, possibly created by
+#'              [swbm_build_field_value_df()]
+#' @param update_table Table of land use updates, where each column has a name of the form
+#'                     'landuse_XX' where XX is year 20XX, each row is a field, in order, and the
+#'                     cells contain valid land use codes (see [swbm_lutype])
+#' @param verbose T/F write # of yearly changed to console (default: TRUE)
+#'
+#' @return Updated lu_df
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_lu <- rep(swbm_lutype['Alfalfa','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_lu)
+#'
+#' # Make update table
+#' updates <- data.frame('ID'=1:nfields, 'landuse_11'=swbm_lutype['Pasture','Code'])
+#'
+#' # Do updates
+#' lu_df <- swbm_landuse_update(lu_df, updates)
+#'
+swbm_landuse_update <- function(lu_df, update_table, verbose=TRUE) {
+
+  # update_table is assumed to have columns of 'landuse_XX' where XX is year 20XX
+  for (col in names(update_table)[2:length(names(update_table))]) {
+    col_yr <- 2000 + as.numeric(strsplit(col, '_')[[1]][2])
+    sps_after_change <- nrow(lu_df[year(lu_df$Stress_Period) >= col_yr,])
+
+    # Get changes
+    change_df <- update_table[update_table[,col]>0,c('ID',col)]
+
+    # Create change matrix
+    diff <- matrix(change_df[,col],
+                   nrow=sps_after_change,
+                   ncol=length(change_df[,col]),
+                   byrow = T)
+
+    # Report
+    if (verbose) {
+      message(paste('Column:', col, ' Year:', col_yr, '- ', length(change_df[,col]), 'Fields Updated'))
+    }
+
+    # Update
+    lu_df[year(lu_df$Stress_Period) >= col_yr, names(lu_df) %in% paste0('ID_',change_df$ID)] <- diff
+  }
+  return(lu_df)
+}
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Update Irrigation Type Table with New Data
+#'
+#' @param irrtype_df Dataframe of field irrigation types for each stress period, possibly created by
+#'                   [swbm_build_field_value_df()]
+#' @param update_table Dataframe with columns 'ID' of field IDs and 'Year' of the year (integer XXXX)
+#'                     when the field switched to center pivot. Zeros can be used to denote that it
+#'                     has never switched.
+#' @param verbose T/F write # of yearly changed to console (default: TRUE)
+#'
+#' @return Updated irrtype_df
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
+#'
+#' # Make update table - magically all fields updated to center pivot in 2005!
+#' updates <- data.frame('ID'=1:nfields, 'Year'=2005)
+#'
+#' # Do updates
+#' lu_df <- swbm_irrtype_cp_update(lu_df, updates)
+#'
+swbm_irrtype_cp_update <- function(irrtype_df, update_table, verbose=TRUE) {
+
+  # Switch is to center pivot
+  new_code <- swbm_irrtype['Center Pivot', 'Code']
+
+  #-- Loop over years where changes occur
+  for (yr in unique(update_table[update_table$Year>0,]$Year)) {  # when year==0 no data/change
+    id_cols <- update_table$ID[update_table$Year == yr]
+
+    if (verbose) {
+      message(paste('Year:', yr, '- ', length(id_cols), 'fields switched to center pivot (code =',new_code,')'))
+    }
+
+    irrtype_df[year(irrtype_df$Stress_Period) >= yr, paste0('ID_', id_cols)] <- new_code
+  }
+
+  return(irrtype_df)
+}

@@ -26,9 +26,11 @@ dataframe of ET data from start_date to end_date
 }
 \description{
 Combines 3 datasets to create a final evapotranspiration dataset for SVIHM:
-- Original SVIHM ET data (ref_et_1991_2011.txt)
-- CIMIS Station 225 (Scott Valley) measured ET (from 2015-04-19 to current)
-- Spatial SVIHM ET data for gap between datasets
+\itemize{
+\item Original SVIHM ET data (ref_et_1991_2011.txt)
+\item CIMIS Station 225 (Scott Valley) measured ET (from 2015-04-19 to current)
+\item Spatial SVIHM ET data for gap between datasets
+}
 }
 \details{
 Uses linear interpolation to fill missing daily ET data (with a message)
