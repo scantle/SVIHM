@@ -501,4 +501,85 @@ write_swbm_precip_input_file <- function(p_record,
 
 }
 
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Calculate SWBM Precipitation Factors
+#'
+#' Relates each landuse polygon (field) to spatially distributed rainfall data.
+#' Generates a multiplication factor for each field to modify the model-domain-wide daily
+#' precipitation input record.
+#'
+#' @param poly_filename Filename containing table of land use polygons
+#' @param output_dir Directory to write file
+#' @param rainfall_records Dataframe containing daily precipitation records (includes
+#' public weather station data and date collected from private gauges).
+#' @param rainfall_locations Dataframe containing locations for each rainfall record (includes
+#' public weather station data and date collected from private gauges).
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return A two-column dataframe containing the SWBM polygon (field) ID; and the precip
+#' multiplication factor.
+#' @author Leland Scantlebury and Claire Kouba
+#' @export
+#'
+#' @examples
+#'
+calc_swbm_spatial_precip_factors <- function(
+                                          poly_tab_filename = "polygons_table.txt",
+                                          poly_shapefile_filename = NA,
+                                          rainfall_records = NA,
+                                          rainfall_locations = NA,
+                                          verbose=TRUE){
+
+  if(is.na(poly_shapefile_filename) | is.na(rainfall_records) | is.na(rainfall_locations)){
+    print("Information for spatial rainfall variability not available.")
+    print("Generating precip factors corresponding to no spatial variability (all field factors = 1).")
+
+    poly_tab = read.table(file.path(data_dir['time_indep_dir','loc'], poly_tab_filename),
+                          comment.char = "!", fill = T, header = T)
+    precip_factors = data.frame(SWBM_id = poly_tab$X.ID,
+                                  ppt_fact = 1)
+
+  } else {
+    # PLACEHOLDER: spatially relate fields to krigged precip data?
+    # Make different factor for each month?
+  }
+
+  return(precip_factors)
+
+}
+
+
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Write SWBM Precipitation Factor File
+#'
+#' Writes the Soil Water Balance Model (SWBM) precipitation factor file (precip_factors.txt).
+#' Consists of one factor per land use polygon (i.e., field). Is used to multiply the
+#' daily precip value to implement spatial precipitation gradients.
+#'
+#' @param output_dir Directory to write file
+#' @param filename Precip factors filename
+#' @param precip_factors_df A two-column dataframe containing the SWBM polygon (field) ID; and the
+#' precip multiplication factor.
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None
+#' @author Leland Scantlebury and Claire Kouba
+#' @export
+#'
+#' @examples
+write_swbm_precip_factor_file <- function(output_dir,
+                                          filename = "precip_factors.txt",
+                                          precip_factors_df,
+                                          verbose=TRUE){
+
+  if (verbose) {message(paste('Writing file: ', filename))}
+  write.table(precip_factors_df, file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = T, row.names = FALSE)
+
+}
+
 #-------------------------------------------------------------------------------------------------#

@@ -1,6 +1,3 @@
-SVIHM  1991  2119  4  167  0  9       ! modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws
-TRUE  14  336  440  210               ! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols 
-1.4  UCODE                            ! RD_Mult, UCODE/PEST
-! Basecase  Basecase  Basecase          ! Basecase/MAR/ILR/MAR_ILR, Basecase/Flow_Lims, Basecase/Major_NatVeg
-! 11  31  AllYears  ! alf_irr_stop_mo  alf_irr_stop_day early_alf_cutoff_scenario
-!NoCurtail  11  15  ! curtailment_scenario curtail_start_mo curtail_start_day
+SVIHM  1991  2119  4  167  0  9  ! modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws
+TRUE  13  385  440  210  ! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols
+1.4  UCODE  ! RD_Mult, UCODE/PEST
