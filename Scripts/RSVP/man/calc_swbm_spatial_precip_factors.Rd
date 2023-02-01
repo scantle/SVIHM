@@ -6,7 +6,7 @@
 \usage{
 calc_swbm_spatial_precip_factors(
   poly_tab_filename = "polygons_table.txt",
-  poly_shapefile_name = NA,
+  poly_shapefile_filename = NA,
   rainfall_records = NA,
   rainfall_locations = NA,
   verbose = TRUE

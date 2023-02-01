@@ -450,3 +450,50 @@ swbm_irrtype_cp_update <- function(irrtype_df, update_table, verbose=TRUE) {
 
   return(irrtype_df)
 }
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying irrigation curtailment regulations/practices
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return curtail_tab
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
+#'
+#' # Make update table - magically all fields updated to center pivot in 2005!
+#' updates <- data.frame('ID'=1:nfields, 'Year'=2005)
+#'
+#' # Do updates
+#' lu_df <- swbm_irrtype_cp_update(lu_df, updates)
+#'
+write_SWBM_curtailment_file <- function(scenario_name = "basecase",
+                                        start_date,
+                                        n_stress) {
+
+  # # Switch is to center pivot
+  # new_code <- swbm_irrtype['Center Pivot', 'Code']
+  #
+  # #-- Loop over years where changes occur
+  # for (yr in unique(update_table[update_table$Year>0,]$Year)) {  # when year==0 no data/change
+  #   id_cols <- update_table$ID[update_table$Year == yr]
+  #
+  #   if (verbose) {
+  #     message(paste('Year:', yr, '- ', length(id_cols), 'fields switched to center pivot (code =',new_code,')'))
+  #   }
+  #
+  #   irrtype_df[year(irrtype_df$Stress_Period) >= yr, paste0('ID_', id_cols)] <- new_code
+  # }
+  #
+  # return(irrtype_df)
+}

@@ -25,7 +25,7 @@ and the file "subwatershed_nonirrigation_inflows.txt" if FALSE.}
 
 \item{instream_flow_regime}{Date frame of start- and end-dates and flow values
 describing an annual instream flow regime. If NA, produces a 0-flow nonirrigation inflows
-table or passes 100% of inflow to the irrigation inflows table.}
+table or passes 100\% of inflow to the irrigation inflows table.}
 
 \item{instream_flow_units}{Handles "cfs", "cms" or "m3day". Defaults to NA.}
 }
