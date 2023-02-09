@@ -11,47 +11,6 @@ library(colorspace)
 library(sf)
 
 
-svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
-sfr_inflow_segs = read.table(file.path(data_dir["ref_data_dir","loc"],"SFR_inflow_segments.txt"),
-                             # comment.char = "!",
-                             sep = "\t", header = T)
-
-# The SWBM reads this polygons table (SVIHM fields attributes) as a .txt file.
-# But it's super annoying to store it that way and manipulate it in R. Storing it in csv
-# form makes it easier to keep the Notes column and avoid read errors.
-poly_tab = read.csv(file.path(data_dir["time_indep_dir","loc"],"polygons_table_ref.csv"),
-                    header = T,
-                    colClasses = c(rep("integer",4),
-                                   "numeric","integer",
-                                   rep("numeric",2),
-                                   rep("integer",2),
-                                   "character"))
-
-# rename columns to match new (2022) SWBM version
-colnames(poly_tab) = c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
-                       "AWCcmprcm","Initial_fill_fraction","WL_2_CP_Yr","ILR_Flag","Notes")
-
-
-
-# add information for two extra columns, new as of 2022
-# BEWARE: this takes like 10 minutes to compute intersections of all 2119 polygons. (Is sf slow?)
-# infil_tab = get_polygons_ksat(svihm_fields = svihm_fields) # retrieve k_sat, max. infiltration rate
-
-# Assign infiltration rate to polytab
-poly_tab$max_infil_rate = infil_tab$ksat_m_day[match(poly_tab$SWBM_id, infil_tab$field_id)]
-poly_tab$Notes=NULL
-# Assign inflow segments to each field.
-# UPDATE: Going to skip this and see if it breaks
-poly_tab$runoff_ISEG = NA
-
-# Reorder columns to match new (2022) format
-poly_tab = poly_tab[,c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
-                       "AWCcmprcm","Initial_fill_fraction","max_infil_rate","runoff_ISEG","WL_2_CP_Yr","ILR_Flag")]
-
-# Save polygons_table.txt in the time_indep_dir, excluding notes column.
-write.table(poly_tab, file = file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
-            quote=F, col.names = T, sep = "\t", row.names=F, overwrite=T)
-
 
 # ------------------------------------------------------------------------------------------------#
 
@@ -163,6 +122,13 @@ get_polygons_ksat <- function(show_map = F, svihm_fields) {
 #'
 get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields) {
 
+  # Currently a placeholder. Not currently worth it to actually assign ISEGs, since
+  # diversions get allocated in SWBM based on set fraction of subwatershed demand to each inflow point.
+
+
+
+  # Scratch work trying to figure this out:
+
   plot(svihm_fields$geometry, col = as.factor(svihm_fields$Trib_2011))
 
   # Assign subwatershed to old Tributary_2011 field before making modifications
@@ -230,10 +196,75 @@ get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields) {
   # Currently, several Tailings-area fields are assigned to Scott River:
   # c(1515:1518, 1520,1521,1528,1529)
 
-  # Spatially relate the ksat values to each field. weighted average.
-  return(iseg_by_field)
+  # return(iseg_by_field)
 
 }
 
 
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Reads in current version of polygons_table_ref.csv and updates for new (2022) SWBM version.
+#'
+#' @return Nothing; saves file in SWBM time_indep_dir folder.
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+#'
+
+save_updated_polygons_table_txt = function(){
+  # Update polygons_table.txt (input file of SVIHM fields info table)
+
+  # Read in reference csv of poly_tab
+  poly_tab = read.csv(file.path(data_dir["time_indep_dir","loc"],"polygons_table_ref.csv"),
+                      header = T)
+
+  # If this is the old (2018) version of polytab, rename columns to match new (2022) SWBM version
+  # and attach ksat soil property
+  if(!is.element(el="max_infil_rate)")){
+    colnames(poly_tab) = c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
+                           "AWCcmprcm","Initial_fill_fraction","WL_2_CP_Yr","ILR_Flag","Notes")
+
+    # add information for two extra columns, new as of 2022
+
+    # 1) Assign infiltration rate to polytab
+    # Read in fields spatial file for spatial relation
+    svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+    # BEWARE: this takes like 10 minutes to compute intersections of all 2119 polygons. (Is sf slow?)
+    infil_tab = get_polygons_ksat(svihm_fields = svihm_fields) # retrieve k_sat, max. infiltration rate
+
+    # Attach infil rates to poly_tab
+    poly_tab$max_infil_rate = infil_tab$ksat_m_day[match(poly_tab$SWBM_id, infil_tab$field_id)]
+
+    # Assign inflow segments to each field.
+    sfr_inflow_segs = read.table(file.path(data_dir["ref_data_dir","loc"],"SFR_inflow_segments.txt"),
+                                 # comment.char = "!",
+                                 sep = "\t", header = T)
+    # UPDATE: Going to skip this and see if it breaks. Assign each runoff_ISEG to 0 (a nonexistent segment)
+    poly_tab$runoff_ISEG = 0
+
+    # Reorder columns to match new (2022) format
+    poly_tab = poly_tab[,c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
+                           "AWCcmprcm","Initial_fill_fraction","max_infil_rate","runoff_ISEG",
+                           "WL_2_CP_Yr","ILR_Flag", "Notes")]
+
+  }
+
+  # Convert the ILR Flag 1s and 0s (in the 2018 version) to logicals
+  poly_tab$ILR_Flag=as.logical(poly_tab$ILR_Flag)
+  # Assign 0-infiltration for polygons with no SSURGO info
+  poly_tab$max_infil_rate[is.na(poly_tab$max_infil_rate)] = 0
+  # Take out notes column for storage as .txt file
+  poly_tab$Notes=NULL
+
+  # Save polygons_table.txt in the time_indep_dir, excluding notes column.
+  write.table(poly_tab, file = file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
+              quote=F, col.names = T, sep = "\t", row.names=F)
+
+}
 
