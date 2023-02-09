@@ -1,0 +1,239 @@
+# 00_SpatialDataUpdates.R
+# Implements updates to some inptu files of time-invariant, spatial SVIHM datasets.
+# Incorporates existing spatial data information (i.e., does not re-create SWBM
+# spatial files from scratch.
+# 1. Soil conductivity for polygons_table.txt update (Feb 2023)
+# 2. Diversion point from table for polygons_table.txt update (Feb 2023)
+#
+library(RSVP)
+library(soilDB)
+library(colorspace)
+library(sf)
+
+
+svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+sfr_inflow_segs = read.table(file.path(data_dir["ref_data_dir","loc"],"SFR_inflow_segments.txt"),
+                             # comment.char = "!",
+                             sep = "\t", header = T)
+
+# The SWBM reads this polygons table (SVIHM fields attributes) as a .txt file.
+# But it's super annoying to store it that way and manipulate it in R. Storing it in csv
+# form makes it easier to keep the Notes column and avoid read errors.
+poly_tab = read.csv(file.path(data_dir["time_indep_dir","loc"],"polygons_table_ref.csv"),
+                    header = T,
+                    colClasses = c(rep("integer",4),
+                                   "numeric","integer",
+                                   rep("numeric",2),
+                                   rep("integer",2),
+                                   "character"))
+
+# rename columns to match new (2022) SWBM version
+colnames(poly_tab) = c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
+                       "AWCcmprcm","Initial_fill_fraction","WL_2_CP_Yr","ILR_Flag","Notes")
+
+
+
+# add information for two extra columns, new as of 2022
+# BEWARE: this takes like 10 minutes to compute intersections of all 2119 polygons. (Is sf slow?)
+# infil_tab = get_polygons_ksat(svihm_fields = svihm_fields) # retrieve k_sat, max. infiltration rate
+
+# Assign infiltration rate to polytab
+poly_tab$max_infil_rate = infil_tab$ksat_m_day[match(poly_tab$SWBM_id, infil_tab$field_id)]
+poly_tab$Notes=NULL
+# Assign inflow segments to each field.
+# UPDATE: Going to skip this and see if it breaks
+poly_tab$runoff_ISEG = NA
+
+# Reorder columns to match new (2022) format
+poly_tab = poly_tab[,c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
+                       "AWCcmprcm","Initial_fill_fraction","max_infil_rate","runoff_ISEG","WL_2_CP_Yr","ILR_Flag")]
+
+# Save polygons_table.txt in the time_indep_dir, excluding notes column.
+write.table(poly_tab, file = file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
+            quote=F, col.names = T, sep = "\t", row.names=F, overwrite=T)
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Retrieve SSURGO data and spatially relate the saturated conductivity (max water infiltration
+#' rate) to polygons table of SVIHM fields
+#'
+#' @return Table of SWBM field IDs with associated max water infiltration rate
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+#'
+get_polygons_ksat <- function(show_map = F, svihm_fields) {
+  #convert micrometers per second (SSURGO units) to meters per day (SVIHM units)
+  um_per_sec_to_m_per_day = 1/10^6 * 60*60*24
+
+  # Scott River watershed bounding box in WGS 84 (EPSG 4326)
+  scott_huc8_extent = data.frame(xmin = -123.22381, ymin = 41.19597,
+                                 xmax = -122.56570, ymax = 41.78506)
+  bbox_watershed = sf::st_as_sf(wk::rct(xmin = scott_huc8_extent$xmin,
+                                        xmax = scott_huc8_extent$xmax,
+                                        ymin = scott_huc8_extent$ymin,
+                                        ymax = scott_huc8_extent$ymax,
+                                        crs = sf::st_crs(4326)))
+
+  ssurgo.geom <- SDA_spatialQuery(geom = bbox_watershed,
+                                  what = 'mupolygon',
+                                  db = 'SSURGO',
+                                  geomIntersection = TRUE)
+
+  soil_ksat = get_SDA_property(property = "ksat_r",
+                               method = c("Weighted Average"),
+                               # "Dominant Component (Category)", "Weighted Average", "Min/Max",
+                               # "Dominant Component (Numeric)", "Dominant Condition", "None")
+                               mukeys = ssurgo.geom$mukey,
+                               top_depth = 0,
+                               bottom_depth = 200,
+  )
+
+  # Attach ksat value to geometry and convert to meters per day
+  ssurgo.geom$ksat_um_sec = soil_ksat$ksat_r[match(ssurgo.geom$mukey, soil_ksat$mukey)]
+  ssurgo.geom$ksat_m_day = ssurgo.geom$ksat_um_sec * um_per_sec_to_m_per_day
+
+  if(show_map == T){
+    # Build order-of-magnitude breaks for plotting
+    ksat_range = range(ssurgo.geom$ksat_m_day, na.rm=T)
+    breaks_exp = seq(from = floor(log10(ksat_range[1])), to = ceiling(log10(ksat_range[2])))
+    ksat_breaks = 10^breaks_exp
+    n_classes = length(ksat_breaks)-1
+    # Divide the ksat values into categories according to predetermined breaks
+    ksat_classifier = cut(x = ssurgo.geom$ksat_m_day, breaks = ksat_breaks, include.lowest = T)
+    # Define color palette
+    infil_palette = "Purples 3"# "Oslo"
+    my_palette = sequential_hcl(n_classes,
+                                palette = infil_palette)
+    # Plot map of soil properties within the bounding box of the Scott R Watershed
+    plot(ssurgo.geom$geom, col = my_palette[ksat_classifier])
+    legend_labels = paste(paste(ksat_breaks[1:(n_classes)],
+                                ksat_breaks[2:(n_classes+1)], sep = " to "),
+                          "m/day")
+    legend(x = "bottomleft", legend = legend_labels, fill = my_palette)
+  }
+
+
+  # Spatially relate the ksat values to each field. weighted average.
+  # Reproject soils data into EPSG 3310.
+  ssurgo_3310 = st_transform(ssurgo.geom, crs = st_crs(x = svihm_fields))
+  output_tab = data.frame(field_id = sort(svihm_fields$Polynmbr),
+                          ksat_m_day_avg = NA)
+
+  for(i in sort(svihm_fields$Polynmbr)){
+    field = svihm_fields[svihm_fields$Polynmbr == i,]
+    print(i)
+    if(!st_is_valid(field)){
+      print(paste("Field ID", i, "is invalid"))
+      field = st_buffer(x = field, dist = 0)
+      }
+
+    field_ssurgo_intersect = st_intersection(y = field, x = ssurgo_3310)
+    # Calculate area-weighted average saturated conductivity for each field
+    ksat_m3_per_day = st_area(field_ssurgo_intersect) * field_ssurgo_intersect$ksat_m_day
+    ksat_m_day_avg = sum(ksat_m3_per_day) / sum(st_area(field_ssurgo_intersect))
+
+    output_tab$ksat_m_day_avg[output_tab$field_id==i] = ksat_m_day_avg
+
+  }
+
+  # Returt dataframe
+  return(output_tab)
+}
+
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Assign each SVIHM field polygon a surface water diversion point (SFR segment).
+#'
+#' @return Table of SWBM field IDs with associated SFR inflow segment.
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+#'
+get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields) {
+
+  plot(svihm_fields$geometry, col = as.factor(svihm_fields$Trib_2011))
+
+  # Assign subwatershed to old Tributary_2011 field before making modifications
+  svihm_fields$subws = svihm_fields$Trib_2011
+
+  # Difficult to identify the inflow segment for some fields without completely redoing
+  # the spatial analysis (and possibly messing with calibration)
+  # Also, currently, in medium cases, the surface water diversions get
+  # divided among inflow segments on a monthly basis after SW demand is calculated. So
+  # the inflow segment assignment happens after the fact, via the subwatershed assignment.
+
+
+  # Easy cases: Single identified subwatershed, single inflow point
+  # easy_subws = c(3, 5, 6, 7, 8) # Etna, Kidder, Moffett, Mill and Shackleford Creeks
+
+  # Medium cases: Single identified subwatershed, multiple inflow points
+  # med_subws = c(2, 4) # French (French and Miners inflows) and Patterson (Johnson, Crystal, and Patterson inflows)
+
+  # Hard cases
+  # Tailings: subwatershed is "Tailings." Inflow seg is 1 (southernmost point in valley).
+
+  # Scott River: The fields with "Scott River" Trib_2011 info are hard.
+  # They get their Sw from the Farmer's Ditch and the SVID Ditch diversions.
+
+
+
+  # "Undetermined" subwatershed (in Scott River, French drainages). Keep with no iseg? nah.
+  # Special cases: Poly#715 is in French Creek but not labeled as such
+
+  # Scott River and Scott Tailings identified subwatershed
+  # 3 diversion points:
+  # 1) The confluence of the EF and SF
+  # 1b) The confluence of Sugare Creek and Scott River (since these inflows are lumped in old [2018] SWBM)
+  # 2) Farmer's ditch diversion (right below Sugar Creek)
+  # 3) SVID ditch diversion (at Young's Dam, about 1/3 of the way between French and Etna confluences)
+  # Currently, the ditch diversions are modeled *independent* of agricultural demand. We just assume a constant
+  # diversion and leakage rate. And any extra water at the end of the ditches... disappears? Right? No, flows back into
+  # the Scott River?
+
+
+  # Motherfucker. What the fuck is in that polygons_table.txt subwatershed field?
+  # match poly_tab$subws to spatial polygons
+  # color code those fuckers
+  # Oh I see. All the "Undetermined" polygons got attached to the East Fork, South Fork, Sugar creek combined inflow.
+  # Undetermined = subws 9 in poly_tab.
+
+  svihm_fields$subws = poly_tab$subws_ID[match(svihm_fields$Polynmbr, poly_tab$SWBM_id)]
+  plot(svihm_fields$geometry, col = svihm_fields$subws)
+
+
+
+  # So ALL surface water diversions from the entire river corridor are taken from the tailings
+  # inflow segment?? AYFKM
+
+
+  #So, what, in this case we have all fields assigned to a subwatershed. And then the division of SW diversions
+  # into inflow point extractions happens after the fact. Yes? Right? So actually specifying iseg for each
+  # field would be unnecessary.
+  # So, we're not going to do this. screw this exercise.
+
+
+  # scratchwork
+  # poly_tab$subws[poly_tab$Trib_2011=="Undetermined"] = 1 # Assign to Scott Tailings subws
+  # poly_tab$subws[poly_tab$X.ID==715] = 2 # All but this Undetermined field; assign this field to French subws (from QGIS visualizing)
+  # Currently, several Tailings-area fields are assigned to Scott River:
+  # c(1515:1518, 1520,1521,1528,1529)
+
+  # Spatially relate the ksat values to each field. weighted average.
+  return(iseg_by_field)
+
+}
+
+
+

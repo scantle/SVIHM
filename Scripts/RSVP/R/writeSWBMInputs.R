@@ -497,3 +497,5 @@ write_SWBM_curtailment_file <- function(scenario_name = "basecase",
   #
   # return(irrtype_df)
 }
+
+

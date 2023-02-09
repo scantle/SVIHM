@@ -17,7 +17,7 @@ NSEG	ICALC	OUTSEG	IUPSEG	IPRIOR	WIDTH1	WIDTH2	MANNING_N	Bed_K_Param	Manning_n_Pa
 16	1	17	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Crystal Creek
 17	1	19	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Big Slough
 18	1	19	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Patterson Creek
-19	1	22	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Big Slough - Drains Inflow
+19	1	22	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Big Slough - Drains Inflow (2018 version)
 20	1	26	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Oro Fino Creek
 21	1	22	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Kidder Creek
 22	1	23	0	0	10	10	0.035	BedK_3	Manning_n_3	!Trib	Big Slough
