@@ -538,7 +538,7 @@ calc_swbm_spatial_precip_factors <- function(
 
     poly_tab = read.table(file.path(data_dir['time_indep_dir','loc'], poly_tab_filename),
                           comment.char = "!", fill = T, header = T)
-    precip_factors = data.frame(SWBM_id = poly_tab$X.ID,
+    precip_factors = data.frame(SWBM_id = poly_tab$SWBM_id,
                                   ppt_fact = 1)
 
   } else {

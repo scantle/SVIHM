@@ -451,6 +451,64 @@ swbm_irrtype_cp_update <- function(irrtype_df, update_table, verbose=TRUE) {
   return(irrtype_df)
 }
 
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying pumping volumes in agricultural wells
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return curtail_tab
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
+#'
+#' # Make update table - magically all fields updated to center pivot in 2005!
+#' updates <- data.frame('ID'=1:nfields, 'Year'=2005)
+#'
+#' # Do updates
+#' lu_df <- swbm_irrtype_cp_update(lu_df, updates)
+#'
+write_ag_pumping_file <- function(start_date, n_stress, output_dir,
+                                  ag_pumping_data = NA,
+                                  filename = "ag_well_specified_volume.txt") {
+
+  stress_period_vector = format(seq.Date(from=start_date, length.out=n_stress, by="month"),
+                                format = "%b%Y")
+
+  # get vector of well IDs
+  hob_info = read.table(file.path(data_dir['ref_data_dir','loc'],"hob_wells.txt"), header = F, skip = 4)
+  colnames(hob_info) = c('OBSNAM', 'LAYER', 'ROW', 'COLUMN', 'IREFSP', 'TOFFSET', 'ROFF', 'COFF', 'HOBS', 'STATISTIC', 'STAT-FLAG', 'PLOT-SYMBOL')
+  well_ids = hob_info$OBSNAM
+
+
+  if(is.na(ag_pumping_data)){
+    #If no ag pumping data provided, set all stress periods to FALSE (no specified pumping volumes)
+    # and pump volumes to 0
+    specify_pumping = rep(FALSE, length(stress_period_vector))
+    pumping_volumes = data.frame(matrix(data = 0, nrow = n_stress, ncol = length(well_ids)))
+
+    ag_pumping_tab = cbind(stress_period_vector, specify_pumping, pumping_volumes)
+    colnames(ag_pumping_tab) = c("well_id", "specify_pumping", well_ids)
+  } else {
+    # placeholder - if we receive specified ag pumping data (or want to specifically dictate it for
+    # a scenario), file design can go here.
+  }
+
+  write.table(ag_pumping_tab, file = file.path(output_dir, filename), sep = "  ", quote = F,
+              col.names = TRUE, row.names = FALSE)
+}
+
+
 # ------------------------------------------------------------------------------------------------#
 
 #' Write file specifying irrigation curtailment regulations/practices

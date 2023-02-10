@@ -19,6 +19,8 @@ write_scenario_prep_batchfile <- function(scenario_name='basecase',
   write('if not exist "Run\\MODFLOW" mkdir Run\\MODFLOW', file = f, append=T)
   write('', file = f, append=T)
   write(':: Copy scenario independant MODFLOW model files', file = f, append=T)
+  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\polygon_table.txt Run\\SWBM /Y /I', file = f, append=T)
+  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\precip_factors.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\SVIHM.* Run\\MODFLOW /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\Starting_Heads_L*.txt Run\\MODFLOW /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\landcover_table.txt Run\\MODFLOW /Y /I', file = f, append=T)

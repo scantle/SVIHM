@@ -12,6 +12,19 @@ library(sf)
 
 
 
+calc_and_save_precip_factors=function(){
+
+  # Precip factors
+
+  # Precip factors - spatial variation in rainfall. Field-by-field multiplier of overall rainfall amount.
+  precip_factors = calc_swbm_spatial_precip_factors()
+
+  write_swbm_precip_factor_file(output_dir = time_indep_ref, precip_factors_df = precip_factors)
+
+}
+
+
+
 # ------------------------------------------------------------------------------------------------#
 
 #' Retrieve SSURGO data and spatially relate the saturated conductivity (max water infiltration
@@ -221,7 +234,7 @@ save_updated_polygons_table_txt = function(){
   # Update polygons_table.txt (input file of SVIHM fields info table)
 
   # Read in reference csv of poly_tab
-  poly_tab = read.csv(file.path(data_dir["time_indep_dir","loc"],"polygons_table_ref.csv"),
+  poly_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
                       header = T)
 
   # If this is the old (2018) version of polytab, rename columns to match new (2022) SWBM version
