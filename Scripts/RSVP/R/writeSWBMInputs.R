@@ -486,9 +486,9 @@ write_ag_pumping_file <- function(start_date, n_stress, output_dir,
                                 format = "%b%Y")
 
   # get vector of well IDs
-  hob_info = read.table(file.path(data_dir['ref_data_dir','loc'],"hob_wells.txt"), header = F, skip = 4)
-  colnames(hob_info) = c('OBSNAM', 'LAYER', 'ROW', 'COLUMN', 'IREFSP', 'TOFFSET', 'ROFF', 'COFF', 'HOBS', 'STATISTIC', 'STAT-FLAG', 'PLOT-SYMBOL')
-  well_ids = hob_info$OBSNAM
+  ag_wells = read.table(file.path(data_dir['time_indep_dir','loc'],"ag_well_summary.txt"),
+                        header = T)
+  well_ids = ag_wells$well_id
 
 
   if(is.na(ag_pumping_data)){
@@ -519,25 +519,57 @@ write_ag_pumping_file <- function(start_date, n_stress, output_dir,
 #' @export
 #'
 #' @examples
-#' # Dates
-#' start_date <- get_model_start(1991)
-#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
-#' # Fields
-#' nfields <- 100
-#' # For example: land use
-#' default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
 #'
-#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
 #'
-#' # Make update table - magically all fields updated to center pivot in 2005!
-#' updates <- data.frame('ID'=1:nfields, 'Year'=2005)
-#'
-#' # Do updates
-#' lu_df <- swbm_irrtype_cp_update(lu_df, updates)
 #'
 write_SWBM_curtailment_file <- function(scenario_name = "basecase",
                                         start_date,
                                         n_stress) {
+
+  # reference build_field_value_df
+
+
+
+  # # Switch is to center pivot
+  # new_code <- swbm_irrtype['Center Pivot', 'Code']
+  #
+  # #-- Loop over years where changes occur
+  # for (yr in unique(update_table[update_table$Year>0,]$Year)) {  # when year==0 no data/change
+  #   id_cols <- update_table$ID[update_table$Year == yr]
+  #
+  #   if (verbose) {
+  #     message(paste('Year:', yr, '- ', length(id_cols), 'fields switched to center pivot (code =',new_code,')'))
+  #   }
+  #
+  #   irrtype_df[year(irrtype_df$Stress_Period) >= yr, paste0('ID_', id_cols)] <- new_code
+  # }
+  #
+  # return(irrtype_df)
+}
+
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying land use types for each field, for each stress period
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return landcover_tab
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+write_SWBM_landcover_file <- function(scenario_name = "basecase",
+                                        start_date,
+                                        n_stress) {
+
+  # reference build_field_value_df
+
+
+
 
   # # Switch is to center pivot
   # new_code <- swbm_irrtype['Center Pivot', 'Code']
