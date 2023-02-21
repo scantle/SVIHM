@@ -252,7 +252,7 @@ save_updated_polygons_table_txt = function(){
 
   # If this is the old (2018) version of polytab, rename columns to match new (2022) SWBM version
   # and attach ksat soil property
-  if(!is.element(el="max_infil_rate)")){
+  if(!is.element(el="max_infil_rate)", colnames(poly_tab))){
     colnames(poly_tab) = c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
                            "AWCcmprcm","Initial_fill_fraction","WL_2_CP_Yr","ILR_Flag","Notes")
 
@@ -429,4 +429,44 @@ save_ag_well_summary_tab = function(){
               file = file.path(data_dir["time_indep_dir","loc"],"ag_well_summary.txt"),
               quote=F, col.names = T, sep = "\t", row.names=F)
 
+}
+
+
+
+save_updated_fields_shapefile = function(){
+  # Read in reference csv of poly_tab
+  poly_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
+                      header = T)
+  # Read in fields spatial file for spatial relation
+  svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+
+  poly2 = svihm_fields
+  poly2$ws18code = poly_tab$WATERSOURC[match(poly2$Polynmbr, poly_tab$SWBM_id)]
+  poly2$lu18code = poly_tab$SWBM_LU[match(poly2$Polynmbr, poly_tab$SWBM_id)]
+
+  # save landuse categories
+  lu = c(25,2,3,4,6)
+  lu_descrip = c("Alfalfa","Pasture","ET_noIrr","noET_noIrr", "Water")
+  lu_color = c("forestgreen","darkolivegreen2","wheat","red","dodgerblue")
+  lu_df = data.frame(lu_code = lu, lu_descrip = lu_descrip, color = lu_color)
+
+  wat_source = c(1,2,3,4,5,999)
+  wat_source_descrip = c("SW","GW","Mixed", "Sub-irrigated","Dry","Unknown")
+  wat_source_color = c("dodgerblue","firebrick2","darkorchid1","green","yellow","gray")
+
+  wat_source_df = data.frame(ws_code = wat_source,
+                             descrip = wat_source_descrip,
+                             color = wat_source_color)
+
+  poly2$lu_18 = lu_df$lu_descrip[match(poly2$lu18code, lu_df$lu_code)]
+  poly2$ws_18 = wat_source_df$descrip[match(poly2$ws18code,
+                                                       wat_source_df$ws_code)]
+
+  st_write(obj = poly2,
+           dsn = file.path(data_dir["ref_data_dir","loc"]),
+           layer = "Landuse_20190219_updated2023",
+           driver = "ESRI Shapefile", append=F)
+
+  # check to see if they abbreviated the column names
+  # test = st_read(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219_updated2023.shp"))
 }
