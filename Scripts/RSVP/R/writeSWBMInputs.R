@@ -562,30 +562,93 @@ write_SWBM_curtailment_file <- function(scenario_name = "basecase",
 #'
 #'
 #'
-write_SWBM_landcover_file <- function(scenario_name = "basecase",
-                                        start_date,
-                                        n_stress) {
+write_SWBM_landcover_file <- function(scenario_id = "basecase",
+                                      output_dir, start_date, end_date) {
+  recognized_scenarios = c("basecase")
+  output_filename = "polygon_landcover_ids.txt"
 
-  # reference build_field_value_df
+  # pull reference land cover
+  poly_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
+                      header = T)
+  num_unique_fields = length(unique(poly_tab$SWBM_id))
+  # Check for polygon ID number continuity
+  if(nrow(poly_tab) != num_unique_fields){
+    print("Caution: polygons (fields) info table contains replicated or missing ID numbers")
+  }
+  # generate a
+  field_df = swbm_build_field_value_df(nfields = num_unique_fields,
+                                       model_start_date = start_date,
+                                       model_end_date = end_date)
 
+  # Build default (time-invarying) land use table
+  for(i in 1:num_unique_fields){
+    field_id = poly_tab$SWBM_id[i]
+    # set entire model period to the baseline land use from reference poly_tab file
+    field_df[,paste0("ID_",field_id)] = poly_tab$SWBM_LU[poly_tab$SWBM_id==field_id]
+  }
 
+  if(tolower(scenario_id) == "basecase"){
+    landcover_output = field_df
+  }
+  # if(tolower(scenario_id=="natveg")){} # Placeholder :
+  # Replace default with new landcover file, and update recognized_scenarios
+  # possible steps: read in fields and potentially adjudicated zone
+  # potentially read in schedule of land use updates
 
-
-  # # Switch is to center pivot
-  # new_code <- swbm_irrtype['Center Pivot', 'Code']
-  #
-  # #-- Loop over years where changes occur
-  # for (yr in unique(update_table[update_table$Year>0,]$Year)) {  # when year==0 no data/change
-  #   id_cols <- update_table$ID[update_table$Year == yr]
-  #
-  #   if (verbose) {
-  #     message(paste('Year:', yr, '- ', length(id_cols), 'fields switched to center pivot (code =',new_code,')'))
-  #   }
-  #
-  #   irrtype_df[year(irrtype_df$Stress_Period) >= yr, paste0('ID_', id_cols)] <- new_code
-  # }
-  #
-  # return(irrtype_df)
+  if(!(tolower(scenario_id) %in% recognized_scenarios)){
+    print("Warning: specified landuse scenario not recognized in current codebase. No landcover file written")
+  }
+  if(tolower(scenario_id) %in% recognized_scenarios){
+    write.table(landcover_output, file = file.path(output_dir, output_filename),
+                sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+  }
 }
+
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying crop coefficients for each crop type, for each daily timestep
+#'
+#' @param model_start_date Start date of simulation
+#' @param model_end_date End date of simulation
+#' @param output_dir directory to write the files in
+#'
+#' @return none; writes file
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+write_daily_crop_coeff_values_file = function(model_start_date, model_end_date, output_dir){
+
+  #TO DO: Read max kc values from the landcover_table. Use to update scenarios
+
+  # Generate new kc records based on model period
+  kc_alfalfa <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date)
+  kc_pasture <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date)
+  kc_grain   <- gen_daily_curve_crop_coefficients(model_start_date, model_end_date)
+  kc_natveg <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date,
+                                                  kc_growing = 0.6,
+                                                  growing_season_start_day = 1, growing_season_start_month = 1,
+                                                  growing_season_end_day = 31, growing_season_end_month = 12)
+  kc_water <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date,
+                                                 kc_growing = 0,
+                                                 growing_season_start_day = 1, growing_season_start_month = 1,
+                                                 growing_season_end_day = 31, growing_season_end_month = 12)
+  kc_urban <- gen_daily_binary_crop_coefficients(model_start_date, model_end_date,
+                                                 kc_growing = 0,
+                                                 growing_season_start_day = 1, growing_season_start_month = 1,
+                                                 growing_season_end_day = 31, growing_season_end_month = 12)
+  # Combine daily kc records into one table
+  kc_values = data.frame(Date = format(kc_alfalfa$Date, "%Y-%m-%d"),
+                         Alfalfa_Kc = kc_alfalfa$kc, Grain_Kc = kc_grain$kc,
+                         Pasture_Kc = kc_pasture$kc, Native_Veg_Kc = kc_natveg$kc,
+                         Barren_Urban_Kc = kc_urban$kc, Water_Kc = kc_water$kc)
+  # Write combined kc values file
+  write.table(kc_values, file = file.path(output_dir, "kc_values.txt"),
+              sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+  }
 
 

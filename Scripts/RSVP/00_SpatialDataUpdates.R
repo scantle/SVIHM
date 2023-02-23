@@ -445,7 +445,7 @@ save_updated_fields_shapefile = function(){
   poly2$lu18code = poly_tab$SWBM_LU[match(poly2$Polynmbr, poly_tab$SWBM_id)]
 
   # save landuse categories
-  lu = c(25,2,3,4,6)
+  lu = c(25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
   lu_descrip = c("Alfalfa","Pasture","ET_noIrr","noET_noIrr", "Water")
   lu_color = c("forestgreen","darkolivegreen2","wheat","red","dodgerblue")
   lu_df = data.frame(lu_code = lu, lu_descrip = lu_descrip, color = lu_color)
