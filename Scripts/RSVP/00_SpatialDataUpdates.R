@@ -288,6 +288,23 @@ save_updated_polygons_table_txt = function(){
   # Take out notes column for storage as .txt file
   poly_tab$Notes=NULL
 
+  # Rewrite landuse types based on new landcover_table.txt file. Alfalfa now = 1, grain = 2.
+  # set everything that is 25 to alfalfa I guess.
+  # still not sure how this is going to work with the fucking rotation though! (as of 2/24/2023)
+  landcover_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"landcover_table.txt"),
+                               # comment.char = "!",
+                               sep = "\t", header = T)
+
+  lu_2018 = c(25,25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
+  lu_descrip = c("Alfalfa","Grain","Pasture","ET_noIrr","noET_noIrr", "Water")
+  lu_color = c("forestgreen","forestgreen","darkolivegreen2","wheat","red","dodgerblue")
+  lu_2022 = c(1,2,3,4,5,6)
+  lu_df = data.frame(lu_code = lu_2018, lu_descrip = lu_descrip, color = lu_color, lu_code_22 = lu_2022)
+
+  SWBM_LU_new = lu_df$lu_code_22[match(poly_tab$SWBM_LU, lu_df$lu_code)]
+
+  poly_tab$SWBM_LU = SWBM_LU_new
+
   # Save polygons_table.txt in the time_indep_dir, excluding notes column.
   write.table(poly_tab, file = file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
               quote=F, col.names = T, sep = "\t", row.names=F)

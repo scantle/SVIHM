@@ -15,21 +15,3 @@ curtail_tab
 \description{
 Write file specifying irrigation curtailment regulations/practices
 }
-\examples{
-# Dates
-start_date <- get_model_start(1991)
-end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
-# Fields
-nfields <- 100
-# For example: land use
-default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
-
-lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
-
-# Make update table - magically all fields updated to center pivot in 2005!
-updates <- data.frame('ID'=1:nfields, 'Year'=2005)
-
-# Do updates
-lu_df <- swbm_irrtype_cp_update(lu_df, updates)
-
-}

@@ -141,7 +141,7 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        modelName = "SVIHM",
                                        WYstart = 1991,
                                        npoly = 2119,
-                                       nlandcover = 4,
+                                       nlandcover = 6,
                                        nAgWells = 167,
                                        nMuniWells = 0,
                                        nSubws = 9,
@@ -568,7 +568,7 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
   output_filename = "polygon_landcover_ids.txt"
 
   # pull reference land cover
-  poly_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
+  poly_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
                       header = T)
   num_unique_fields = length(unique(poly_tab$SWBM_id))
   # Check for polygon ID number continuity
