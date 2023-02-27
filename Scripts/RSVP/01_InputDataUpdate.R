@@ -48,6 +48,15 @@ write_swbm_precip_input_file(p_record = prcp, output_dir = update_dir, filename 
 
 # ET
 et <- build_daily_et_df(model_start_date, model_end_date)
+# In case of CIMIS rejecting your query (try several times to be sure), download data from
+# CIMIS station 225 (daily data, csv file, metric units, 2015-04-19 through present),
+# save in update_dir, and use this workaround
+
+if(!exists("et")){
+  et <- build_daily_et_df(start_date = model_start_date, end_date = model_end_date,
+                          api_download = F, local_file = T, update_dir = update_dir)
+
+}
 write_swbm_et_input_file(et_record = et, output_dir = update_dir, filename = 'ref_et.txt')
 
 
@@ -60,5 +69,6 @@ fjd_model <- download_fort_jones_flow(model_start_date,
                                     save_csv = TRUE)
 
 tribs <- get_tributary_flows(end_date = model_end_date, fj_update = fjd_model)
-write_tributary_input_file(tribs, output_dir = update_dir, start_date=model_start_date, end_date=model_end_date)
+write_tributary_input_file(gauges = tribs, output_dir = update_dir,
+                           start_date=model_start_date, end_date=model_end_date)
 

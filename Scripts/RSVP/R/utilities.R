@@ -85,7 +85,7 @@ days_in_month_diff <- function(start, end) {
   end_day <- as.numeric(format(end, '%d'))
   # Get months, get difference between months
   model_months <- seq.Date(from = start, to = end, by = "month")
-  model_end_date_plus_one = as.Date(ceiling_date(end+30)) #as.Date(paste(end_year, end_month+1, end_day, sep = "-"))
+  model_end_date_plus_one = as.Date(ceiling_date(end+28)) #as.Date(paste(end_year, end_month+1, end_day, sep = "-"))
   model_months_plus_one = seq(from = start, to = model_end_date_plus_one, by = "month")
 
   return(as.numeric(diff(model_months_plus_one)))

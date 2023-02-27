@@ -11,7 +11,7 @@ write_SWBM_gen_inputs_file(
   modelName = "SVIHM",
   WYstart = 1991,
   npoly = 2119,
-  nlandcover = 4,
+  nlandcover = 6,
   nAgWells = 167,
   nMuniWells = 0,
   nSubws = 9,

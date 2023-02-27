@@ -497,7 +497,7 @@ write_swbm_precip_input_file <- function(p_record,
 
   if (verbose) {message(paste('Writing file: ', filename))}
   write.table(daily_precip_updated, file = file.path(output_dir, filename),
-              sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+              sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
 }
 

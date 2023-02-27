@@ -10,7 +10,8 @@ write_SWBM_SFR_diversions_file(
   num_divs = 2,
   iseg_for_divs = c(3, 10),
   iprior_for_divs = c(0, 0),
-  flow_for_divs = c(0, 0)
+  flow_for_divs = c(0, 0),
+  verbose = T
 )
 }
 \arguments{

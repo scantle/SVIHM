@@ -33,6 +33,7 @@ Scenarios/*
 !Scenarios/basecase/
 SWBM/scenario_archive
 MODFLOW/scenario_archive
+SWBM_Test/SWBM/recharge
 
 #-- Open excel files
 ~*.xlsx

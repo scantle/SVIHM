@@ -243,7 +243,7 @@ write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, ver
 
     write.table(sfr_component,
                 file = file.path(output_dir, filename),
-                sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
+                sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
   # }
 
@@ -276,7 +276,8 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
                                            num_divs = 2,
                                            iseg_for_divs = c(3,10), # Stream segment of diversion
                                            iprior_for_divs = c(0,0), # Modflow param. for calc.
-                                           flow_for_divs = c(0,0)) {    # Flowrate (units? cfs?)
+                                           flow_for_divs = c(0,0),    # Flowrate (units? cfs?)
+                                           verbose = T) {
 
   sfr_divs = c(
     paste(num_divs, "    ! Number of diversions", sep = "  "),
@@ -458,7 +459,7 @@ swbm_irrtype_cp_update <- function(irrtype_df, update_table, verbose=TRUE) {
 #'
 #' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
 #'
-#' @return curtail_tab
+#' @return none; writes input file
 #' @export
 #'
 #' @examples
@@ -505,6 +506,63 @@ write_ag_pumping_file <- function(start_date, n_stress, output_dir,
   }
 
   write.table(ag_pumping_tab, file = file.path(output_dir, filename), sep = "  ", quote = F,
+              col.names = TRUE, row.names = FALSE)
+}
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying pumping volumes in municipal wells
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return none; writes input file
+#' @export
+#'
+#' @examples
+#' # Dates
+#' start_date <- get_model_start(1991)
+#' end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
+#' # Fields
+#' nfields <- 100
+#' # For example: land use
+#' default_irr <- rep(swbm_irrtype['Wheel Line','Code'], nfields)
+#'
+#' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_irr)
+#'
+#' # Make update table - magically all fields updated to center pivot in 2005!
+#' updates <- data.frame('ID'=1:nfields, 'Year'=2005)
+#'
+#' # Do updates
+#' lu_df <- swbm_irrtype_cp_update(lu_df, updates)
+#'
+write_muni_pumping_file <- function(start_date, n_stress, output_dir,
+                                  muni_pumping_data = NA,
+                                  filename = "muni_well_specified_volume.txt") {
+
+  stress_period_vector = format(seq.Date(from=start_date, length.out=n_stress, by="month"),
+                                format = "%b%Y")
+
+  # get vector of well IDs
+  muni_wells = read.table(file.path(data_dir['time_indep_dir','loc'],"muni_well_summary.txt"),
+                        header = T)
+  well_ids = muni_wells$well_id
+
+
+  if(is.na(muni_pumping_data)){
+    #If no muni pumping data provided, set all stress periods to FALSE (no specified pumping volumes)
+    # and pump volumes to 0
+    specify_pumping = rep(FALSE, length(stress_period_vector))
+    pumping_volumes = data.frame(matrix(data = 0, nrow = n_stress, ncol = length(well_ids)))
+
+    muni_pumping_tab = cbind(stress_period_vector, specify_pumping, pumping_volumes)
+    colnames(muni_pumping_tab) = c("well_id", "specify_pumping", well_ids)
+  } else {
+    # placeholder - if we receive specified ag pumping data (or want to specifically dictate it for
+    # a scenario), file design can go here.
+  }
+
+  write.table(muni_pumping_tab, file = file.path(output_dir, filename), sep = "  ", quote = F,
               col.names = TRUE, row.names = FALSE)
 }
 

@@ -83,6 +83,9 @@ write_SWBM_SFR_diversions_file(output_dir = update_dir)
 # Specified pumping data (if available)
 write_ag_pumping_file(start_date = model_start_date, n_stress = num_stress_periods,
                       output_dir = update_dir, ag_pumping_data = NA)
+write_muni_pumping_file(start_date = model_start_date, n_stress = num_stress_periods,
+                      output_dir = update_dir, muni_pumping_data = NA)
+
 # Land use by field by month
 write_SWBM_landcover_file(scenario_id = current_scenario, output_dir = update_dir,
                           start_date = model_start_date, end_date = model_end_date)
@@ -111,3 +114,4 @@ update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
 
 # Create new batchfile for assembling the updated model
 write_update_prep_batchfile(update_dir)
+

@@ -109,6 +109,12 @@ gen_daily_curve_crop_coefficients <- function(model_start_date,
   kc_days = rep(kc_dormant, length(model_days))
 
   #find the index of the growing season start for each year and assign the growing season curve
+
+  # But if the growing season hasn't started yet this year, make these indices end last year
+  growing_season_start_date_final_year = as.Date(paste(end_year, growing_season_start_month, growing_season_start_day, sep = "-"))
+  if(model_end_date < growing_season_start_date_final_year){
+    end_year = end_year - 1
+  }
   for(yr in (start_year+1):end_year){
     start_day_index = which(lubridate::year(model_days) == yr &
                               lubridate::month(model_days) == growing_season_start_month &

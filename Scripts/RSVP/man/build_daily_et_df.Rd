@@ -8,6 +8,10 @@ build_daily_et_df(
   start_date,
   end_date,
   ref_data_dir = data_dir["ref_data_dir", "loc"],
+  api_download = TRUE,
+  local_file = FALSE,
+  update_dir = NA,
+  local_et_filename = "daily.csv",
   verbose = TRUE
 )
 }
