@@ -89,6 +89,12 @@ write_muni_pumping_file(start_date = model_start_date, n_stress = num_stress_per
 # Land use by field by month
 write_SWBM_landcover_file(scenario_id = current_scenario, output_dir = update_dir,
                           start_date = model_start_date, end_date = model_end_date)
+# MAR applications by field by month
+write_SWBM_MAR_vol_file(scenario_id = current_scenario, output_dir = update_dir,
+                        start_date = model_start_date, end_date = model_end_date)
+# Irrigation curtailment fractions (as fraction of calculated demand) by field by month
+write_SWBM_curtailment_file(scenario_id = current_scenario, output_dir = update_dir,
+                        start_date = model_start_date, end_date = model_end_date)
 
 
 # ------------------------------------------------------------------------------------------------#
@@ -112,6 +118,13 @@ update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
 
 # Batch File --------------------------------------------------------------
 
+# If necessary, create new batchfile for
+batch_file_name = paste0("Prepare_",current_scenario,"_Run.bat")
+if(!file.exists(file.path(data_dir["svihm_dir","loc"], batch_file_name))){
+  write_scenario_prep_batchfile(scenario_name = current_scenario)
+  }
+
 # Create new batchfile for assembling the updated model
 write_update_prep_batchfile(update_dir)
+
 

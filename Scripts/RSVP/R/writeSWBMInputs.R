@@ -633,7 +633,7 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
   if(nrow(poly_tab) != num_unique_fields){
     print("Caution: polygons (fields) info table contains replicated or missing ID numbers")
   }
-  # generate a
+  # generate a stress-period-by-field table (wide format)
   field_df = swbm_build_field_value_df(nfields = num_unique_fields,
                                        model_start_date = start_date,
                                        model_end_date = end_date)
@@ -648,20 +648,132 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
   if(tolower(scenario_id) == "basecase"){
     landcover_output = field_df
   }
+
   # if(tolower(scenario_id=="natveg")){} # Placeholder :
   # Replace default with new landcover file, and update recognized_scenarios
   # possible steps: read in fields and potentially adjudicated zone
   # potentially read in schedule of land use updates
 
   if(!(tolower(scenario_id) %in% recognized_scenarios)){
-    print("Warning: specified landuse scenario not recognized in current codebase. No landcover file written")
+    print("Warning: specified landuse scenario not recognized in current codebase. Using default land cover file")
+    landcover_output = field_df
   }
-  if(tolower(scenario_id) %in% recognized_scenarios){
-    write.table(landcover_output, file = file.path(output_dir, output_filename),
-                sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
-  }
+
+  write.table(landcover_output, file = file.path(output_dir, output_filename),
+              sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+
 }
 
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying Managed Aquifer Recharge (applied irrigation) volumes for each field, for each stress period
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return none, saves MAR_volumes.txt
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+write_SWBM_MAR_vol_file <- function(scenario_id = "basecase",
+                                      output_dir, start_date, end_date) {
+  recognized_scenarios = c("basecase")
+  output_filename = "MAR_volumes.txt"
+
+  # pull reference land cover
+  poly_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
+                        header = T)
+  num_unique_fields = length(unique(poly_tab$SWBM_id))
+  # Check for polygon ID number continuity
+  if(nrow(poly_tab) != num_unique_fields){
+    print("Caution: polygons (fields) info table contains replicated or missing ID numbers")
+  }
+
+  # generate a stress-period-by-field table (wide format)
+  field_df = swbm_build_field_value_df(nfields = num_unique_fields,
+                                       model_start_date = start_date,
+                                       model_end_date = end_date)
+
+  # Build default MAR volumes table (no MAR applications)
+  field_column_selector = grepl(pattern = "ID", x = colnames(field_df))
+  field_df[,field_column_selector] = 0
+
+  if(tolower(scenario_id) == "basecase"){
+    mar_vol_output = field_df
+  }
+  # if(tolower(scenario_id=="natveg")){} # Placeholder :
+  # Replace default with new MAR vol file, and update recognized_scenarios
+  # possible steps: read in fields and potentially adjudicated zone
+  # potentially read in schedule of land use updates
+
+  if(!(tolower(scenario_id) %in% recognized_scenarios)){
+    print("Warning: specified MAR scenario not recognized in current codebase. Using basecase MAR file (no irrigation applied for MAR)")
+    mar_vol_output = field_df
+  }
+  write.table(mar_vol_output, file = file.path(output_dir, output_filename),
+              sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+
+}
+
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Write file specifying Managed Aquifer Recharge (applied irrigation) volumes for each field, for each stress period
+#'
+#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#'
+#' @return none, saves MAR_volumes.txt
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+write_SWBM_curtailment_file <- function(scenario_id = "basecase",
+                                    output_dir, start_date, end_date) {
+  recognized_scenarios = c("basecase")
+  output_filename = "curtailment_fractions.txt"
+
+  # pull reference land cover
+  poly_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
+                        header = T)
+  num_unique_fields = length(unique(poly_tab$SWBM_id))
+  # Check for polygon ID number continuity
+  if(nrow(poly_tab) != num_unique_fields){
+    print("Caution: polygons (fields) info table contains replicated or missing ID numbers")
+  }
+
+  # generate a stress-period-by-field table (wide format)
+  field_df = swbm_build_field_value_df(nfields = num_unique_fields,
+                                       model_start_date = start_date,
+                                       model_end_date = end_date)
+
+  # Build default MAR volumes table (no MAR applications)
+  field_column_selector = grepl(pattern = "ID", x = colnames(field_df))
+  field_df[,field_column_selector] = 0
+
+  if(tolower(scenario_id) == "basecase"){
+    mar_vol_output = field_df
+    # read in 2021 and 2022 curtailment input file
+    curtail_frac = read.table(file.path(data_dir["ref_data_dir","loc"],"curtailments_historical.txt"),
+                               header = T)
+  }
+  # if(tolower(scenario_id=="natveg")){} # Placeholder :
+  # Replace default with new MAR vol file, and update recognized_scenarios
+  # possible steps: read in fields and potentially adjudicated zone
+  # potentially read in schedule of land use updates
+
+  if(!(tolower(scenario_id) %in% recognized_scenarios)){
+    print("Warning: specified MAR scenario not recognized in current codebase. Using basecase MAR file (no irrigation applied for MAR)")
+    mar_vol_output = field_df
+  }
+  write.table(mar_vol_output, file = file.path(output_dir, output_filename),
+              sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+
+}
 
 
 # ------------------------------------------------------------------------------------------------#

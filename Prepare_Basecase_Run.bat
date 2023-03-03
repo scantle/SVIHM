@@ -10,14 +10,27 @@ if not exist "Run\SWBM" mkdir Run\SWBM
 if not exist "Run\MODFLOW" mkdir Run\MODFLOW
 
 :: Copy scenario independant MODFLOW model files
+xcopy SVIHM_Input_Files\time_independent_input_files\system_commands.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\recharge_zones.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\SFR_network.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\SFR_routing.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\SFR_inflow_segments.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\ag_well_summary.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\ag_well_list_by_polygon.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\muni_well_summary.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\muni_well_list_by_polygon.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\print_daily.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\polygons_table.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\precip_factors.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\landcover_table.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM.* Run\MODFLOW /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\Starting_Heads_L*.txt Run\MODFLOW /Y /I
 
 :: Copy files from scenario folder to run folder
-xcopy Scenarios\%scen%\*.txt Run\SWBM /Y /I
-xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
-xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I 
-xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_*_template.txt Run\SWBM /Y /I
+:: xcopy Scenarios\%scen%\*.txt Run\SWBM /Y /I
+:: xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
+:: xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I 
+:: xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_*_template.txt Run\SWBM /Y /I
 
 :: Copy in generic run batch file
 xcopy Scripts\Batch_Scripts\Run_SVIHM.bat Run /Y /I
