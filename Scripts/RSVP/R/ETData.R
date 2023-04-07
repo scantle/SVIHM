@@ -243,9 +243,10 @@ write_swbm_et_input_file <- function(et_record,
                                      verbose=TRUE) {
 
   # Convert
-  et_out <- data.frame(ETo_m  = et_record$ETo_mm / 1000,
-                       ETo_in = et_record$ETo_mm / 25.4, #convert to inches
-                       Date   = et_record$Date)
+  et_out <- data.frame(Date   = et_record$Date,
+                       ETo_m  = et_record$ETo_mm / 1000,
+                       ETo_in = et_record$ETo_mm / 25.4 #convert to inches
+                       )
   et_out$Date <- format(et_out$Date, '%d/%m/%Y')
 
   # Write

@@ -38,7 +38,7 @@ write_scenario_prep_batchfile <- function(scenario_name='basecase',
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\Starting_Heads_L*.txt Run\\MODFLOW /Y /I', file = f, append=T)
   write('', file = f, append=T)
   write(':: Copy files from scenario folder to run folder', file = f, append=T)
-  write('xcopy Scenarios\\%scen%\\*.txt Run\\SWBM /Y /I', file = f, append=T)
+  # write('xcopy Scenarios\\%scen%\\*.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy Scenarios\\%scen%\\*.zone Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy Scenarios\\%scen%\\SVIHM.* Run\\MODFLOW /Y /I ', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\SVIHM_*_template.txt Run\\SWBM /Y /I', file = f, append=T)

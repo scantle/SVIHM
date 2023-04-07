@@ -23,14 +23,15 @@ xcopy SVIHM_Input_Files\time_independent_input_files\print_daily.txt Run\SWBM /Y
 xcopy SVIHM_Input_Files\time_independent_input_files\polygons_table.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\precip_factors.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\landcover_table.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\MAR_volumes.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\curtailment_fractions.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM.* Run\MODFLOW /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\Starting_Heads_L*.txt Run\MODFLOW /Y /I
 
 :: Copy files from scenario folder to run folder
-:: xcopy Scenarios\%scen%\*.txt Run\SWBM /Y /I
-:: xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
-:: xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I 
-:: xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_*_template.txt Run\SWBM /Y /I
+xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
+xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I 
+xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_*_template.txt Run\SWBM /Y /I
 
 :: Copy in generic run batch file
 xcopy Scripts\Batch_Scripts\Run_SVIHM.bat Run /Y /I
