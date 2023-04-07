@@ -1,3 +1,4 @@
+modelMonth East_Fork_Avg_Flow_m3day South_Fork_Avg_Flow_m3day Sugar_Avg_Flow_m3day French_Avg_Flow_m3day Etna_Avg_Flow_m3day Johnson_Avg_Flow_m3day Crystal_Avg_Flow_m3day Patterson_Avg_Flow_m3day Kidder_Avg_Flow_m3day Moffett_Avg_Flow_m3day Mill_Avg_Flow_m3day Shackleford_Avg_Flow_m3day
 1990-10-01 0 0 0 0 0 0 0 0 0 0 0 0
 1990-11-01 0 0 0 0 0 0 0 0 0 0 0 0
 1990-12-01 0 0 0 0 0 0 0 0 0 0 0 0
@@ -383,3 +384,6 @@
 2022-08-01 0 0 0 0 0 0 0 0 0 0 0 0
 2022-09-01 0 0 0 0 0 0 0 0 0 0 0 0
 2022-10-01 0 0 0 0 0 0 0 0 0 0 0 0
+2022-11-01 0 0 0 0 0 0 0 0 0 0 0 0
+2022-12-01 0 0 0 0 0 0 0 0 0 0 0 0
+2023-01-01 0 0 0 0 0 0 0 0 0 0 0 0
