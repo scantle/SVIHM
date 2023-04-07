@@ -9,6 +9,7 @@ library(RSVP)
 library(soilDB)
 library(colorspace)
 library(sf)
+library(httr)
 
 
 # ------------------------------------------------------------------------------------------------#
@@ -502,13 +503,12 @@ save_updated_fields_shapefile = function(){
 }
 
 
-
 # ------------------------------------------------------------------------------------------------#
 
-#' Reads in historical curtailments data and translates into an input file for SWBM.
-#' Saves as curtailment_fractions.txt.
+#' Downloads Siskiyou County parcels, clips to Scott River HUC8 watershed, and saves as Scott
+#' Valley parcels shapefile in reference data directory.
 #'
-#' @return Nothing; saves file in SWBM time_indep_ folder.
+#' @return Nothing; saves file in ref_data_dir folder.
 #' @export
 #'
 #' @examples
@@ -516,79 +516,132 @@ save_updated_fields_shapefile = function(){
 #'
 #'
 #'
-#'
 
+save_scott_parcels_shapefile = function(){
 
-write_historical_curtailments_table = function(){
-  # Read in curtailments data for growing season 2022
-  curtail_record_2022 = read.table(file.path(data_dir["ref_data_dir","loc"],
-                                    "LCS Tracking_2022 growing season_anonymized for SVIHM.txt"),
-                                header = T, sep = "\t")
+  # Assessors' Parcels
+  # Accessed from https://www.co.siskiyou.ca.us/planning/webform/gis-data-download
+  # par_url = "https://www.co.siskiyou.ca.us/sites/default/files/fileattachments/community_development/page/2461/siskiyouparcelsnov2017.zip"
+  # par_dl = GET(par_url, write_disk(file.path(data_dir["ref_data_dir", "loc"], zipname), overwrite = TRUE))
 
+  # NEW 2023: accessed from https://open-data-siskiyou.hub.arcgis.com/datasets/siskiyou::tax-parcels/explore
+  # Download manually and rename files Siskiyou_Parcels_Public.zip
 
-  # well info stored for MODFLOW
-  well_summary_old = read.table(file.path(data_dir["ref_data_dir","loc"],"well_summary_ref.txt"),
-                                header = T)
+  zipname = "Siskiyou_Parcels_Public.zip" #strsplit(par_url, "/")[[1]][length(strsplit(par_url, "/")[[1]])]
+  ref_dir = data_dir["ref_data_dir", "loc"]
 
-  ag_well_summary_tab = data.frame(well_id = well_summary_old$LogNumber,
-                                   well_name = NA,
-                                   top_scrn_z = NA,
-                                   bot_scrn_z = NA,
-                                   row_MF = well_summary_old$row,
-                                   col_MF = well_summary_old$column,
-                                   UTM_E = well_summary_old$UTM_E,
-                                   UTM_N = well_summary_old$UTM_N)
+  # Unzip file and save in the working directory (defaults to Documents folder)
+  unzip(file.path(ref_dir, zipname), exdir = ref_dir) #, list = TRUE) # just lists files, does not unzip
+  #Read shapefile into R
+  parcels_all = st_read(file.path(ref_dir, "Siskiyou_Parcels_Public.shp"))
 
+  scott_huc8_extent = data.frame(xmin = -123.22381, ymin = 41.19597,
+                                 xmax = -122.56570, ymax = 41.78506)
 
-  # Find the well location info for the 5 DWR wells. mofo
+  sf_use_s2(FALSE) # workaround for a stupid bug. rough crop
+  parcels_scott = st_crop(x = parcels_all, xmin = scott_huc8_extent$xmin,
+                          xmax = scott_huc8_extent$xmax,
+                          ymin = scott_huc8_extent$ymin,
+                          ymax = scott_huc8_extent$ymax)
+  parcels_scott = st_transform(x = parcels_scott, crs = st_crs(3310))
 
-  # Read in spatial discretization file
-  dis_lines = readLines(file.path(data_dir["ref_data_dir","loc"],"SVIHM_dis_reference.txt"))
+  # plot(parcels_scott$geometry)
 
-  #Extract number of rows and columns in the modflow grid
-  topline = unlist(strsplit(trimws(dis_lines[2]), "  "))
-  n_row = as.numeric(topline)[2]; n_col = as.numeric(topline)[3]
+  st_write(parcels_scott, dsn = ref_dir, layer = "Scott_HUC8_Parcels_Public.shp",
+           driver = "ESRI Shapefile")
 
-  #Isolate elevation of the bottom of layer 1 and the bottom of layer 2.
-  lay1_top_start = grep(pattern = "TOP", x = dis_lines) + 1
-  lay1_top_end = grep(pattern = "Layer", x = dis_lines)[1] - 1
-  lay1_bot_start = grep(pattern = "Layer", x = dis_lines)[1] + 1
-  lay1_bot_end = grep(pattern = "Layer", x = dis_lines)[2] - 1
-  lay2_bot_start = grep(pattern = "Layer", x = dis_lines)[2] + 1
-  lay2_bot_end = grep(pattern = "TR", x = dis_lines)[1] - 1
-
-  lay1_top_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay1_top_start:lay1_top_end]), split = "  ")))
-  lay1_bot_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay1_bot_start:lay1_bot_end]), split = "  ")))
-  lay2_bot_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay2_bot_start:lay2_bot_end]), split = "  ")))
-
-  # Convert values to matrix, matching coordinates
-  lay1_top = matrix(data = lay1_top_vals, nrow = n_row, ncol = n_col, byrow = T)
-  lay1_bot = matrix(data = lay1_bot_vals, nrow = n_row, ncol = n_col, byrow = T)
-  lay2_bot = matrix(data = lay2_bot_vals, nrow = n_row, ncol = n_col, byrow = T)
-  # Assign top_scrn_z and bot_scrn_z to top and bottom of aquifer layer 2 at designated row,col
-  for(i in 1:length(ag_well_summary_tab$well_id)){
-    well_i = ag_well_summary_tab$well_id[i]
-    row_i = ag_well_summary_tab$row_MF[i]
-    col_i = ag_well_summary_tab$col_MF[i]
-    layer_i = well_summary_old$Layer_2017[well_summary_old$LogNumber==well_i]
-    if(layer_i==1){
-      # Top of screen assigned to top of Layer 1
-      ag_well_summary_tab$top_scrn_z[i] = lay1_top[row_i, col_i]
-      # Bottom of screen assigned to bottom of Layer 1
-      ag_well_summary_tab$bot_scrn_z[i] = lay1_bot[row_i, col_i]
-    }
-    if(layer_i==2){
-      # Top of screen assigned to bottom of Layer 1 (top of Layer 2)
-      ag_well_summary_tab$top_scrn_z[i] = lay1_bot[row_i, col_i]
-      # Bottom of screen assigned to bottom of Layer 2
-      ag_well_summary_tab$bot_scrn_z[i] = lay2_bot[row_i, col_i]
-    }
-  }
-
-  write.table(ag_well_summary_tab,
-              file = file.path(data_dir["time_indep_dir","loc"],"ag_well_summary.txt"),
-              quote=F, col.names = T, sep = "\t", row.names=F)
+  #remove unzipped files from scratch drive
+  extension_list = c("cpg", "dbf", "prj", "shx", "shp", "xml", "sbn", "sbx", "shp.xml")
+  file.remove(file.path(ref_dir,paste("Siskiyou_Parcels_Public", extension_list, sep = ".")))
 
 }
 
-
+#' # ------------------------------------------------------------------------------------------------#
+#'
+#' #' Reads in historical curtailments data and translates into an input file for SWBM.
+#' #' Saves as curtailment_fractions.txt.
+#' #'
+#' #' @return Nothing; saves file in SWBM time_indep_ folder.
+#' #' @export
+#' #'
+#' #' @examples
+#' #'
+#' #'
+#' #'
+#' #'
+#' #'
+#'
+#'
+#' write_historical_curtailments_table = function(){
+#'   # Read in curtailments data for growing season 2022
+#'   curtail_record_2022 = read.table(file.path(data_dir["ref_data_dir","loc"],
+#'                                     "LCS Tracking_2022 growing season_anonymized for SVIHM.txt"),
+#'                                 header = T, sep = "\t")
+#'
+#'
+#'   # well info stored for MODFLOW
+#'   well_summary_old = read.table(file.path(data_dir["ref_data_dir","loc"],"well_summary_ref.txt"),
+#'                                 header = T)
+#'
+#'   ag_well_summary_tab = data.frame(well_id = well_summary_old$LogNumber,
+#'                                    well_name = NA,
+#'                                    top_scrn_z = NA,
+#'                                    bot_scrn_z = NA,
+#'                                    row_MF = well_summary_old$row,
+#'                                    col_MF = well_summary_old$column,
+#'                                    UTM_E = well_summary_old$UTM_E,
+#'                                    UTM_N = well_summary_old$UTM_N)
+#'
+#'
+#'   # Find the well location info for the 5 DWR wells. mofo
+#'
+#'   # Read in spatial discretization file
+#'   dis_lines = readLines(file.path(data_dir["ref_data_dir","loc"],"SVIHM_dis_reference.txt"))
+#'
+#'   #Extract number of rows and columns in the modflow grid
+#'   topline = unlist(strsplit(trimws(dis_lines[2]), "  "))
+#'   n_row = as.numeric(topline)[2]; n_col = as.numeric(topline)[3]
+#'
+#'   #Isolate elevation of the bottom of layer 1 and the bottom of layer 2.
+#'   lay1_top_start = grep(pattern = "TOP", x = dis_lines) + 1
+#'   lay1_top_end = grep(pattern = "Layer", x = dis_lines)[1] - 1
+#'   lay1_bot_start = grep(pattern = "Layer", x = dis_lines)[1] + 1
+#'   lay1_bot_end = grep(pattern = "Layer", x = dis_lines)[2] - 1
+#'   lay2_bot_start = grep(pattern = "Layer", x = dis_lines)[2] + 1
+#'   lay2_bot_end = grep(pattern = "TR", x = dis_lines)[1] - 1
+#'
+#'   lay1_top_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay1_top_start:lay1_top_end]), split = "  ")))
+#'   lay1_bot_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay1_bot_start:lay1_bot_end]), split = "  ")))
+#'   lay2_bot_vals = as.numeric(unlist(strsplit(trimws(dis_lines[lay2_bot_start:lay2_bot_end]), split = "  ")))
+#'
+#'   # Convert values to matrix, matching coordinates
+#'   lay1_top = matrix(data = lay1_top_vals, nrow = n_row, ncol = n_col, byrow = T)
+#'   lay1_bot = matrix(data = lay1_bot_vals, nrow = n_row, ncol = n_col, byrow = T)
+#'   lay2_bot = matrix(data = lay2_bot_vals, nrow = n_row, ncol = n_col, byrow = T)
+#'   # Assign top_scrn_z and bot_scrn_z to top and bottom of aquifer layer 2 at designated row,col
+#'   for(i in 1:length(ag_well_summary_tab$well_id)){
+#'     well_i = ag_well_summary_tab$well_id[i]
+#'     row_i = ag_well_summary_tab$row_MF[i]
+#'     col_i = ag_well_summary_tab$col_MF[i]
+#'     layer_i = well_summary_old$Layer_2017[well_summary_old$LogNumber==well_i]
+#'     if(layer_i==1){
+#'       # Top of screen assigned to top of Layer 1
+#'       ag_well_summary_tab$top_scrn_z[i] = lay1_top[row_i, col_i]
+#'       # Bottom of screen assigned to bottom of Layer 1
+#'       ag_well_summary_tab$bot_scrn_z[i] = lay1_bot[row_i, col_i]
+#'     }
+#'     if(layer_i==2){
+#'       # Top of screen assigned to bottom of Layer 1 (top of Layer 2)
+#'       ag_well_summary_tab$top_scrn_z[i] = lay1_bot[row_i, col_i]
+#'       # Bottom of screen assigned to bottom of Layer 2
+#'       ag_well_summary_tab$bot_scrn_z[i] = lay2_bot[row_i, col_i]
+#'     }
+#'   }
+#'
+#'   write.table(ag_well_summary_tab,
+#'               file = file.path(data_dir["time_indep_dir","loc"],"ag_well_summary.txt"),
+#'               quote=F, col.names = T, sep = "\t", row.names=F)
+#'
+#' }
+#'
+#'

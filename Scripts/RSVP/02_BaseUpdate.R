@@ -93,8 +93,10 @@ write_SWBM_landcover_file(scenario_id = current_scenario, output_dir = update_di
 write_SWBM_MAR_vol_file(scenario_id = current_scenario, output_dir = update_dir,
                         start_date = model_start_date, end_date = model_end_date)
 # Irrigation curtailment fractions (as fraction of calculated demand) by field by month
-write_SWBM_curtailment_file(scenario_id = current_scenario, output_dir = update_dir,
-                        start_date = model_start_date, end_date = model_end_date)
+write_SWBM_curtailment_file(scenario_id = current_scenario,
+                            output_dir = update_dir,
+                            start_date = model_start_date,
+                            end_date = model_end_date)
 
 
 # ------------------------------------------------------------------------------------------------#
