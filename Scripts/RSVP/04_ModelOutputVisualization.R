@@ -3,6 +3,7 @@ library(viridis)
 library(hydroGOF)
 library(RMODFLOW)
 library(ggplot2)
+library(reshape2)
 
 #/////////////////-
 # V I S U A L S
@@ -15,7 +16,8 @@ origin_date <- as.Date('1990-09-30')
 create_sp_charts = FALSE  # Many SPs, very slow
 
 # Directories
-run_dir <- file.path('../../Run/')
+run_dir <- file.path('../../Run/') # file.path("C:/Users/Claire/Documents/GitHub/SVIHM_SWBM_dev/SWBM_Test/SWBM")
+swbm_dir = file.path(run_dir, 'SWBM')
 mf_dir <- file.path(run_dir, 'MODFLOW')
 # TODO automate finding latest version
 update_dir <- latest_dir(data_dir['update_dir','loc'])  #file.path('../../SVIHM_Input_Files/Updates/2022-04-13/')
@@ -191,10 +193,108 @@ plot.pre_post_compare(dates = stream_combined[stream_combined$group == 'Fort Jon
                       post_title = post_title)
 dev.off()
 
+
 #-------------------------------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#
-# Volumetric Budget -------------------------------------------------------
+# Volumetric Budget - SWBM ------------------------------------------------------
+# swbm_dir = run_dir
+# swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Runoff', 'Storage','Error')
+SWBM_colors = c('lightblue1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'mistyrose','black','gray' )
+
+SWBM_Monthly_m3 = read.table(file.path(swbm_dir,'monthly_water_budget.dat'), header = T)
+names(SWBM_Monthly_m3) = c('Month',SWBM_Terms)
+n_stress = nrow(SWBM_Monthly_m3)
+
+# process dates for plotting
+SWBM_Monthly_m3$Month = seq.Date(from = origin_date, by = "month", length.out = n_stress)
+SWBM_Monthly_m3$WY = year(SWBM_Monthly_m3$Month)
+SWBM_Monthly_m3$WY[month(SWBM_Monthly_m3$Month)>9] = year(SWBM_Monthly_m3$Month[month(SWBM_Monthly_m3$Month)>9]) +1
+SWBM_Monthly_m3$Month = format(seq(origin_date, by = "month", length.out = n_stress),'%b-%Y')
+
+SWBM_Annual_m3 = aggregate(.~WY,SWBM_Monthly_m3[,!names(SWBM_Monthly_m3)%in%'Month'], FUN = sum)
+
+# melt data for plot
+SWBM_Annual_m3_melt = melt(SWBM_Annual_m3, id.vars = 'WY')
+SWBM_Annual_m3_melt$variable = factor(SWBM_Annual_m3_melt$variable, levels = SWBM_Terms)
+SWBM_Annual_m3_melt = SWBM_Annual_m3_melt[order(SWBM_Annual_m3_melt$variable),]
+
+# make plots in metric and TAF units
+SWBM_Annual_Mm3_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value/1E6)) +
+  geom_bar(aes(fill = variable), position = "stack",
+           stat = 'identity', color = 'black', width = 0.95, size = 0.1) +
+  scale_x_continuous(limits = range(SWBM_Annual_m3$WY),
+                     #breaks = seq(1991,2011,by = 2),
+                     expand = c(0,0))  +
+  scale_y_continuous(limits = c(-300,300), breaks = seq(-300,300,by = 100), expand = c(0,0)) +
+  xlab('') +
+  ylab(bquote('Volume ('*Mm^3*')')) +
+  ggtitle('Soil Zone Annual Budget') +
+  scale_fill_manual(values = SWBM_colors)+
+  theme(legend.title=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(color = 'black', fill = NA),
+        plot.background = element_rect(color = NA, fill = NA),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.7),
+        axis.text = element_text(size = 8),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = c(0.25, 0.95),
+        legend.key = element_rect(fill = NA, color = NA),
+        legend.background = element_rect(fill = NA, color = NA),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 6, margin = margin(r=1,l=1, unit = 'pt')),
+        legend.key.height = unit(10,'pt'))
+
+SWBM_Annual_TAF_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value*0.000810714/1000)) +
+  geom_bar(aes(fill = variable), position = "stack", stat = 'identity', color = 'black', width = 0.95, size = 0.1) +
+  scale_x_continuous(limits = c(1990.4,2011.6), breaks = seq(1991,2011,by = 2),expand = c(0,0))  +
+  scale_y_continuous(limits = c(-300,300), breaks = seq(-300,300,by = 100), expand = c(0,0)) +
+  xlab('') +
+  ylab('Volume (TAF)') +
+  ggtitle('Soil Zone Annual Budget') +
+  scale_fill_manual(values = SWBM_colors)+
+  theme(legend.title=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(color = 'black', fill = NA),
+        plot.background = element_rect(color = NA, fill = NA),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.7),
+        axis.text = element_text(size = 8),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = c(0.25, 0.95),
+        legend.key = element_rect(fill = NA, color = NA),
+        legend.background = element_rect(fill = NA, color = NA),
+        legend.direction = 'horizontal',
+        legend.text = element_text(size = 6, margin = margin(r=1,l=1, unit = 'pt')),
+        legend.key.height = unit(10,'pt'))
+
+
+# SWBM Budget troubleshooting 4/6/2023
+
+old_swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+new_swbm_dir = swbm_dir
+
+old_poly = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
+                    header = T)
+new_poly = read.table(file.path(new_swbm_dir, "polygons_table.txt"), header = T)
+
+table(old_poly$SWBM_IRR)
+table(new_poly$SWBM_IRR)
+
+old_wb=read.table(file.path(old_swbm_dir, "monthly_water_budget.dat"), header = T)
+new_wb = read.table(file.path(new_swbm_dir, "monthly_water_budget.dat"), header = T)
+new_wb = new_wb[1:336,]
+
+
+stream_new_over_old = (new_wb$SW_Irr-old_wb$SW_Irr)/old_wb$SW_Irr
+gw_new_over_old = new_wb$GW_Irr/old_wb$GW_Irr
+summary(new_wb$GW_Irr); summary(old_wb$GW_Irr)
+summary(new_wb$SW_Irr); summary(old_wb$SW_Irr)
+summary(new_wb$Precip); summary(old_wb$Precip)
+
+
+#-------------------------------------------------------------------------------------------------#
+
+#-------------------------------------------------------------------------------------------------#
+# Volumetric Budget - MF -------------------------------------------------------
 
 mfnam <- rmf_read_nam(file.path(mf_dir,'SVIHM.nam'))
 mfdis <- rmf_read_dis(file.path(mf_dir,'SVIHM.dis'), nam=mfnam)
