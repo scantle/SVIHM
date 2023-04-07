@@ -45,10 +45,12 @@ sfr_subws_flow_partitioning <- gen_monthly_sfr_flow_partition(model_start_date, 
 subws_inflow_filename = file.path(update_dir,"streamflow_input.txt")
 subws_irr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_date,
                                              stream_inflow_filename = subws_inflow_filename,
-                                             avail_for_irr = T)
+                                             avail_for_irr = T,
+                                             scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
 subws_nonirr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_date,
                                                     stream_inflow_filename = subws_inflow_filename,
-                                                    avail_for_irr = F)
+                                                    avail_for_irr = F,
+                                                    scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
 
 # Write SWBM Inputs -------------------------------------------------------
 
