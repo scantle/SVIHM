@@ -390,6 +390,7 @@ save_ag_well_summary_tab = function(){
 
   ag_well_summary_tab = data.frame(well_id = well_summary_old$LogNumber,
                                    well_name = NA,
+                                   layer = well_summary_old$Layer_2017,
                                    top_scrn_z = NA,
                                    bot_scrn_z = NA,
                                    row_MF = well_summary_old$row,
