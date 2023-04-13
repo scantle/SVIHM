@@ -678,10 +678,10 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
 #'
 #'
 #'
-write_SWBM_MAR_vol_file <- function(scenario_id = "basecase",
+write_SWBM_MAR_depth_file <- function(scenario_id = "basecase",
                                       output_dir, start_date, end_date) {
   recognized_scenarios = c("basecase")
-  output_filename = "MAR_volumes.txt"
+  output_filename = "MAR_depth.txt"
 
   # pull reference land cover
   poly_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
@@ -702,7 +702,7 @@ write_SWBM_MAR_vol_file <- function(scenario_id = "basecase",
   field_df[,field_column_selector] = 0
 
   if(tolower(scenario_id) == "basecase"){
-    mar_vol_output = field_df
+    mar_depth_output = field_df
   }
   # if(tolower(scenario_id=="natveg")){} # Placeholder :
   # Replace default with new MAR vol file, and update recognized_scenarios
@@ -711,9 +711,9 @@ write_SWBM_MAR_vol_file <- function(scenario_id = "basecase",
 
   if(!(tolower(scenario_id) %in% recognized_scenarios)){
     print("Warning: specified MAR scenario not recognized in current codebase. Using basecase MAR file (no irrigation applied for MAR)")
-    mar_vol_output = field_df
+    mar_depth_output = field_df
   }
-  write.table(mar_vol_output, file = file.path(output_dir, output_filename),
+  write.table(mar_depth_output, file = file.path(output_dir, output_filename),
               sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
 }
