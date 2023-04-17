@@ -43,6 +43,8 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
                                                        'Shackleford Creek'),
                                    partition = c(0.875, 0.125, 0.5, 0.5, 1, 0.148,
                                                  0.111, 0.741, 1,   1,   1, 1))
+                                   # partition = c(1, 1, 0.5, 0.5, 1, 1, # if we made each record a subwatershed
+                                                 # 1, 1, 1,   1,   1, 1))
     # generate SFR_subws_flow_partitioning.txt
     sfr_part_tab = data.frame(modelMonth = model_months)
     for(i in 1:nrow(sfr_unchang_part)){
@@ -86,6 +88,7 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
 #' @examples
 process_monthly_sfr_inflows <- function(model_start_date,
                                     model_end_date,
+                                    scenario_id,
                                     stream_inflow_filename,
                                     avail_for_irr = T,
                                     instream_flow_regime = NA) {

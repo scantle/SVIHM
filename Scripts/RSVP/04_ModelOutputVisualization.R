@@ -221,18 +221,25 @@ colname_list = c("LAYER", "ROW","COL", "STREAM_SEG_NO", "RCH_NO", "FLOW_INTO_STR
                  "STREAM_ET","STREAM_HEAD", "STREAM_DEPTH", "STREAM_WIDTH",
                  "STREAMBED_CONDCTNC","STREAMBED_GRADIENT")
 
-reach_array = array(data=NA, dim = c(length(start_rows), n_reach, 16))
-
-# Process SFR values into an array of row, column, and stress period
-for(i in 1:length(start_rows)){
-  start_row = start_rows[i];
-  sfr_stress = sfr_glob_text[start_row:(start_row+n_reach-1)]
-  for(j in 1:n_reach){
-    sfr_reach = unlist(strsplit(trimws(sfr_stress[j]), " ")) #split on space character
-    sfr_reach = sfr_reach[nchar(sfr_reach)>0] #this produces a lot of blank strings; get rid of those
-    reach_array[i,j,] = sfr_reach
+# Reading SFR data takes ~5 mins. Save to an .RDS file for convenience
+if(!file.exists(file.path(plot_data_dir, "sfr_reach_array.RDS"))){
+  # Initialize array
+  reach_array = array(data=NA, dim = c(length(start_rows), n_reach, 16))
+  # Process SFR values into an array of row, column, and stress period
+  for(i in 1:length(start_rows)){
+    start_row = start_rows[i];
+    sfr_stress = sfr_glob_text[start_row:(start_row+n_reach-1)]
+    for(j in 1:n_reach){
+      sfr_reach = unlist(strsplit(trimws(sfr_stress[j]), " ")) #split on space character
+      sfr_reach = sfr_reach[nchar(sfr_reach)>0] #this produces a lot of blank strings; get rid of those
+      reach_array[i,j,] = sfr_reach
+    }
   }
-}
+  # Save giant reach file as .Rdata
+  # saveRDS(object=reach_array,file=file.path(plot_data_dir,"sfr_reach_array.Rdata"))
+  saveRDS(object=reach_array,file=file.path(plot_data_dir,"sfr_reach_array.rds"))
+} else { reach_array = readRDS(file.path(plot_data_dir,"sfr_reach_array.RDS"))}
+
 
 # #Calculate breaks (for the legend and color coding)
 
@@ -295,14 +302,14 @@ sp_tab$month = month(sp_tab$date)
 sp_tab$water_year = year(sp_tab$date); sp_tab$water_year[sp_tab$month>9] = year(sp_tab$date[sp_tab$month>9])+1
 
 #to make a pdf appendix with each stress period plotted:
-# pdf(file.path(output_figure_dir, "wet_dry_stream_flipbook3.pdf"), width=8.5*2, height=11)
-# for(i in 1:length(start_rows)){
+pdf(file.path(out_dir, "wet_dry_stream_flipbook.pdf"), width=8.5, height=11)
+for(i in 1:length(start_rows)){
 
 #to make a png figure with manually selected stress periods plotted
-png(file.path(out_dir, "wet_dry_stream_4yrs.png"),
-    width=7.5, height=16, units = "in", res=300)
-par(mfrow=c(4,1), mar = c(1,1,1,1))
-for(i in c(287, 323, 239, 299)){ #Aug of 2014 (wet), 2017 (dry), 2010, and 2015 (avg, spread and conc)
+# png(file.path(out_dir, "wet_dry_stream_4yrs.png"),
+#     width=7.5, height=16, units = "in", res=300)
+# par(mfrow=c(4,1), mar = c(1,1,1,1))
+# for(i in c(287, 323, 239, 299)){ #Aug of 2014 (wet), 2017 (dry), 2010, and 2015 (avg, spread and conc)
 
   stress_period_array = data.frame(reach_array[i,,])
   spa = stress_period_array
@@ -325,7 +332,7 @@ for(i in c(287, 323, 239, 299)){ #Aug of 2014 (wet), 2017 (dry), 2010, and 2015 
   #      sub=paste("stress period",sp_tab$stress_period[i]))
   # plot(seg, col=seg$color, pch=19, cex=0.2, add=T)
   #plot basin polygon as background
-  plot(basin$geometry)
+  plot(basin$geometry,main=title_text, sub=paste("stress period",sp_tab$stress_period[i]))
   plot(bg_poly$geometry, col="burlywood1",add=T)
   plot(basin$geometry, border="black", add=T
        #col = "gray20",

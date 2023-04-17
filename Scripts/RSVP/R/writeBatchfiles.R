@@ -32,7 +32,7 @@ write_scenario_prep_batchfile <- function(scenario_name='basecase',
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\polygons_table.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\precip_factors.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\landcover_table.txt Run\\SWBM /Y /I', file = f, append=T)
-  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\MAR_volumes.txt Run\\SWBM /Y /I', file = f, append=T)
+  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\MAR_depth.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\curtailment_fractions.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\SVIHM.* Run\\MODFLOW /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\Starting_Heads_L*.txt Run\\MODFLOW /Y /I', file = f, append=T)

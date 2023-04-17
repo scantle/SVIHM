@@ -321,7 +321,7 @@ gauge_percent_model <- function(source_gauge, percent, stream_name, date_col='Da
 
 #-------------------------------------------------------------------------------------------------#
 
-#' Write Tributary Input File
+#' Write Tributary Input File - Two Forks Version (old)
 #'
 #' @param gauges List of gauge data from \code{\link{get_tributary_flows}}
 #' @param output_dir Directory to write file
@@ -334,7 +334,7 @@ gauge_percent_model <- function(source_gauge, percent, stream_name, date_col='Da
 #' @export
 #'
 #' @examples
-write_tributary_input_file <- function(gauges,
+write_tributary_input_file_2_forks_old <- function(gauges,
                                         output_dir,
                                         start_date,
                                         end_date,
@@ -368,6 +368,74 @@ write_tributary_input_file <- function(gauges,
 
   # Arrange like original
   outdf <- outdf[,c("Month","East_Fork_Avg_Flow_m3day", "South_Fork_Avg_Flow_m3day",
+                    "Sugar_Avg_Flow_m3day", "French_Avg_Flow_m3day",
+                    "Etna_Avg_Flow_m3day", "Johnson_Avg_Flow_m3day",
+                    "Crystal_Avg_Flow_m3day","Patterson_Avg_Flow_m3day",
+                    "Kidder_Avg_Flow_m3day", "Moffett_Avg_Flow_m3day",
+                    "Mill_Avg_Flow_m3day","Shackleford_Avg_Flow_m3day")]
+
+  if (verbose) {message(paste('Writing file: ', filename))}
+
+  write.table(outdf,
+              file = file.path(output_dir, filename),
+              append = F,
+              quote = F,
+              row.names = F,
+              col.names = T,
+              sep = '\t')
+}
+
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Write Tributary Input File
+#'
+#' @param gauges List of gauge data from \code{\link{get_tributary_flows}}
+#' @param output_dir Directory to write file
+#' @param start_date Simulation start date
+#' @param end_date Simulation end date
+#' @param filename Filename (optional, default: streamflow_input.txt)
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None
+#' @export
+#'
+#' @examples
+write_tributary_input_file <- function(gauges,
+                                                   output_dir,
+                                                   start_date,
+                                                   end_date,
+                                                   filename='streamflow_input.txt',
+                                                   verbose=TRUE) {
+
+  # Need days in months for moving average from monthly to daily
+  days_in_mon = days_in_month_diff(start_date, end_date)
+
+  # Compile into a single dataframe
+  i <- 0
+  outdf <- lapply(gauges, function(x) {
+    i <<- i + 1
+    # Subset by date
+    out <- subset.DateTwoSided(x, start_date, end_date, include_end=T)
+    # Convert to m3/day and rename
+    m3_col_name <- paste0(x$stream_name[[1]],'_Avg_Flow_m3day')  # Terrible legacy name
+    names(out)[names(out)=='Date'] <- 'Month'
+    out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
+    if (i == 1) {
+      # Date only for the first value
+      return(out[,c('Month',m3_col_name)])
+    } else {
+      return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+    }
+  })
+  outdf <- do.call(cbind, outdf)
+
+  # A dumb fix for trying to be too clever
+  names(outdf)[1:2] <- c('Month', 'East_and_South_Forks_Avg_Flow_mday') #'East_Fork_Avg_Flow_m3day')
+
+  # Arrange like original
+  outdf <- outdf[,c("Month",#"East_Fork_Avg_Flow_m3day", "South_Fork_Avg_Flow_m3day",
+                    "East_and_South_Forks_Avg_Flow_mday",
                     "Sugar_Avg_Flow_m3day", "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day", "Johnson_Avg_Flow_m3day",
                     "Crystal_Avg_Flow_m3day","Patterson_Avg_Flow_m3day",

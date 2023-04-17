@@ -69,6 +69,27 @@ fjd_model <- download_fort_jones_flow(model_start_date,
                                     save_csv = TRUE)
 
 tribs <- get_tributary_flows(end_date = model_end_date, fj_update = fjd_model)
-write_tributary_input_file(gauges = tribs, output_dir = update_dir,
+
+# Combine East Fork and South Fork tributary flows,
+# since they are represented at a single inflow point at the confluence
+pred_or_obs = rep("Observed", nrow(tribs$East_Fork))
+pred_or_obs[tribs$East_Fork$source == "Predicted" | tribs$South_Fork$source == "Predicted"] = "Predicted"
+
+e_and_s_forks = data.frame(Date = tribs$East_Fork$Date,
+                          normLogAF_trib = NA,
+                          normlogAF_FJ = NA,
+                          stream_name = "East_and_South_Forks",
+                          pred = NA,
+                          source = pred_or_obs,
+                          pred_AF = tribs$East_Fork$pred_AF+tribs$South_Fork$pred_AF,
+                          obs_AF = tribs$East_Fork$obs_AF+tribs$South_Fork$obs_AF) # NA for observed if either is NA
+
+# Remove East and South Fork data tables and add the combined data table
+# As the first stream in the list of tribs
+tribs$East_Fork=NULL; tribs$South_Fork= NULL
+tribs_2 = list(East_and_South_Forks = e_and_s_forks)
+tribs_2 = append(tribs_2, tribs)
+
+write_tributary_input_file(gauges = tribs_2, output_dir = update_dir,
                            start_date=model_start_date, end_date=model_end_date)
 
