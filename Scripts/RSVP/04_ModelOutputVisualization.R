@@ -382,6 +382,9 @@ dev.off()
 # Volumetric Budget - SWBM ------------------------------------------------------
 # swbm_dir = run_dir
 # swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+# SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Storage')
+# SWBM_colors = c('lightblue1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'black' )
+
 SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Runoff', 'Storage','Error')
 SWBM_colors = c('lightblue1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'mistyrose','black','gray' )
 
@@ -395,7 +398,7 @@ SWBM_Monthly_m3$WY = year(SWBM_Monthly_m3$Month)
 SWBM_Monthly_m3$WY[month(SWBM_Monthly_m3$Month)>9] = year(SWBM_Monthly_m3$Month[month(SWBM_Monthly_m3$Month)>9]) +1
 SWBM_Monthly_m3$Month = format(seq(origin_date, by = "month", length.out = n_stress),'%b-%Y')
 
-SWBM_Annual_m3 = aggregate(.~WY,SWBM_Monthly_m3[,!names(SWBM_Monthly_m3)%in%'Month'], FUN = sum)
+SWBM_Annual_m3 = aggregate(.~WY,SWBM_Monthly_m3[,!names(SWBM_Monthly_m3)%in% c('Month',"Stress_Period")], FUN = sum)
 
 # melt data for plot
 SWBM_Annual_m3_melt = melt(SWBM_Annual_m3, id.vars = 'WY')

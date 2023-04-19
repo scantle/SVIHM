@@ -14,7 +14,7 @@ write_SWBM_gen_inputs_file(
   nlandcover = 6,
   nAgWells = 167,
   nMuniWells = 0,
-  nSubws = 9,
+  nSubws = 8,
   inflow_is_vol = TRUE,
   nSFR_inflow_segs = 12,
   nrows = 440,

@@ -78,6 +78,61 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
 
 #-------------------------------------------------------------------------------------------------#
 
+#' Combine East and South Fork streamflow records
+#'
+#' Reads in records from two main forks of Scott River and combines them for model input.
+#'
+#' @param tribs_list List of dataframes containing tributary flow data (gap-filled with FJ flow)
+#'
+#' @details Input/Tributary Gauges included:
+#' * East Fork Scott River
+#' * South Fork Scott River
+#' * Sugar Creek
+#' * Etna Creek
+#' * French Creek
+#' * Patterson Creek
+#' * Kidder Creek
+#' * Moffett Creek
+#' * Mill Creek
+#' * Shackleford Creek
+#'
+#' No Data for Clark, Johnson, Crystal, or Oro Fino Creeks.
+#' @md
+#'
+#' @return List of daily mean dataframes (With E and S forks replaced by Scott River)
+#' @export
+#'
+#' @examples
+
+combine_east_and_south_fork= function(tribs_list){
+  # Combine East Fork and South Fork tributary flows,
+  # since they are represented at a single inflow point at the confluence
+  pred_or_obs = rep("Observed", nrow(tribs_list$East_Fork))
+  pred_or_obs[tribs_list$East_Fork$source == "Predicted" |
+                tribs_list$South_Fork$source == "Predicted"] = "Predicted"
+
+  # add South and East Fork flow together to get Scott River inflow
+  scott_river = data.frame(Date = tribs_list$East_Fork$Date,
+                           normLogAF_trib = NA,
+                           normlogAF_FJ = NA,
+                           stream_name = "East_and_South_Forks",
+                           pred = NA,
+                           source = pred_or_obs,
+                           pred_AF = tribs_list$East_Fork$pred_AF+tribs_list$South_Fork$pred_AF,
+                           obs_AF = tribs_list$East_Fork$obs_AF+tribs_list$South_Fork$obs_AF) # NA for observed if either is NA
+
+  # Remove East and South Fork data tables and add the combined data table
+  # As the first stream in the list of tribs
+  tribs_list$East_Fork=NULL; tribs_list$South_Fork= NULL
+  tribs_list_out = list(Scott_River = scott_river)
+  tribs_list_out = append(tribs_list_out, tribs_list)
+  return(tribs_list_out)
+}
+
+
+
+#-------------------------------------------------------------------------------------------------#
+
 #' Read in River Gauge Daily Means
 #'
 #' Reads in primary gauge (Fort Jones) and input/tributary gauge daily. Adds Acre-ft (AF) column
@@ -388,7 +443,7 @@ write_tributary_input_file_2_forks_old <- function(gauges,
 
 #-------------------------------------------------------------------------------------------------#
 
-#' Write Tributary Input File
+#' Write Tributary Flow Record File (retains all records for inflow partitioning)
 #'
 #' @param gauges List of gauge data from \code{\link{get_tributary_flows}}
 #' @param output_dir Directory to write file
@@ -401,12 +456,13 @@ write_tributary_input_file_2_forks_old <- function(gauges,
 #' @export
 #'
 #' @examples
-write_tributary_input_file <- function(gauges,
-                                                   output_dir,
-                                                   start_date,
-                                                   end_date,
-                                                   filename='streamflow_input.txt',
-                                                   verbose=TRUE) {
+write_trib_file_for_partitioning <- function(gauges,
+                                           output_dir,
+                                           start_date,
+                                           end_date,
+                                           old_tribs_df = NA,
+                                           filename='streamflow_records_regressed.txt',
+                                           verbose=TRUE) {
 
   # Need days in months for moving average from monthly to daily
   days_in_mon = days_in_month_diff(start_date, end_date)
@@ -431,16 +487,153 @@ write_tributary_input_file <- function(gauges,
   outdf <- do.call(cbind, outdf)
 
   # A dumb fix for trying to be too clever
-  names(outdf)[1:2] <- c('Month', 'East_and_South_Forks_Avg_Flow_mday') #'East_Fork_Avg_Flow_m3day')
+  names(outdf)[1:2] <- c('Month', 'Scott_River_Avg_Flow_m3day')
 
   # Arrange like original
-  outdf <- outdf[,c("Month",#"East_Fork_Avg_Flow_m3day", "South_Fork_Avg_Flow_m3day",
-                    "East_and_South_Forks_Avg_Flow_mday",
+  outdf <- outdf[,c("Month",
+                    "Scott_River_Avg_Flow_m3day",
                     "Sugar_Avg_Flow_m3day", "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day", "Johnson_Avg_Flow_m3day",
                     "Crystal_Avg_Flow_m3day","Patterson_Avg_Flow_m3day",
                     "Kidder_Avg_Flow_m3day", "Moffett_Avg_Flow_m3day",
                     "Mill_Avg_Flow_m3day","Shackleford_Avg_Flow_m3day")]
+
+  # If old tributary inflow data provided, retain all old trib records
+  if(sum(!is.na(old_tribs_df))>1){
+    old_tribs_df$Scott_River_Avg_Flow_m3day = rowSums(old_tribs_df[,c("East_Fork_Avg_Flow_m3day",
+                                                                      "South_Fork_Avg_Flow_m3day")])
+    old_tribs_df$East_Fork_Avg_Flow_m3day = NULL; old_tribs_df$South_Fork_Avg_Flow_m3day = NULL
+
+    # arrange columns to be consistent with output dataframe
+    old_tribs_df = old_tribs_df[,colnames(outdf)]
+    join_old_to_outdf = match(outdf$Month, old_tribs_df$Month) # find matching indices
+    join_old_to_outdf = join_old_to_outdf[!is.na(join_old_to_outdf)] # remove NA indices
+    # Assign available old values to output df
+    outdf[join_old_to_outdf,] = old_tribs_df
+  }
+
+
+  if (verbose) {message(paste('Writing file: ', filename))}
+
+  write.table(outdf,
+              file = file.path(output_dir, filename),
+              append = F,
+              quote = F,
+              row.names = F,
+              col.names = T,
+              sep = '\t')
+
+  return(outdf)
+}
+
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Write Surface Water Input File (one combined record per subwatershed)
+#'
+#' @param gauges List of gauge data from \code{\link{get_tributary_flows}}
+#' @param output_dir Directory to write file
+#' @param start_date Simulation start date
+#' @param end_date Simulation end date
+#' @param filename Filename (optional, default: streamflow_input.txt)
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None
+#' @export
+#'
+#' @examples
+write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # function call provides either gauges (list) or tribs_df (dataframe)
+                                                 output_dir,
+                                                 start_date,
+                                                 end_date,
+                                                 filename='streamflow_input.txt',
+                                                 verbose=TRUE) {
+
+  # If gauges list provided, and no tribs dataframe, build tribs dataframe
+  if(sum(is.na(tribs_df))>0 & sum(!is.na(gauges))>0){
+    # Need days in months for moving average from monthly to daily
+    days_in_mon = days_in_month_diff(start_date, end_date)
+
+    # 1. Compile stream records into a single dataframe
+    i <- 0
+    all_tribs_df <- lapply(gauges, function(x) {
+      i <<- i + 1
+      # Subset by date
+      out <- subset.DateTwoSided(x, start_date, end_date, include_end=T)
+      # Convert to m3/day and rename
+      m3_col_name <- paste0(x$stream_name[[1]],'_Avg_Flow_m3day')  # Terrible legacy name
+      names(out)[names(out)=='Date'] <- 'Month'
+      out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
+      if (i == 1) {
+        # Date only for the first value
+        return(out[,c('Month',m3_col_name)])
+      } else {
+        return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+      }
+    })
+    all_tribs_df <- do.call(cbind, all_tribs_df)
+
+    # A dumb fix for trying to be too clever
+    names(all_tribs_df)[1:2] <- c('Month', 'Scott_River_Avg_Flow_m3day')
+  } else { # If tribs dataframe provided, rename variable
+    all_tribs_df = tribs_df
+  }
+
+
+  #2. Sum stream records by subwatershed
+  inflow_segs = read.table(file = file.path( data_dir["time_indep_dir",'loc'], "SFR_inflow_segments.txt"),
+                           comment.char = "!", header = T, row.names = NULL, sep = "\t")
+  n_subws = length(unique(inflow_segs$subws_ID))# number of subwatersheds
+  # associate stream record colname with each inflow segment
+  stream_tab_colname = gsub(x = inflow_segs$stream_name, pattern = "Creek", replacement = "")
+  stream_tab_colname = trimws(stream_tab_colname)
+  stream_tab_colname = gsub(x = stream_tab_colname, pattern = " ", replacement = "_")
+  inflow_segs$stream_tab_colname = paste0(stream_tab_colname, "_Avg_Flow_m3day")
+
+  # Make dataframe of just subwatershed ID number and the stream record name for output file
+  subws_names_df = inflow_segs[,c("subws_ID","subws_name")]
+  subws_names_df$subws_name = gsub(x = subws_names_df$subws_name, pattern = "Scott_Tailings",
+                                   replacement = "Scott_River")
+  subws_names_df = subws_names_df[!duplicated(subws_names_df),]
+
+
+  # Initialize output dataframe
+  outdf = data.frame(Month = all_tribs_df$Month)
+  outdf = cbind(outdf, matrix(data = NA, nrow = nrow(outdf), ncol = n_subws))
+  colnames(outdf)[2:ncol(outdf)] = paste0(subws_names_df$subws_name,"_Avg_Flow_m3day")
+
+  for(i in 1:n_subws){ # for each subwatershed
+
+    subws_colname = paste0(subws_names_df$subws_name[subws_names_df$subws_ID==i], "_Avg_Flow_m3day")
+
+    if(inflow_segs$subws_name[inflow_segs$subws_ID==i][1]=="French"){ # For French Creek drainage
+      # Use only French flow (as no record for Miners Creek)
+      records_in_subws = inflow_segs$stream_tab_colname[inflow_segs$subws_ID==i]
+      records_in_subws = records_in_subws[grep(pattern = "French",x = records_in_subws)]
+    } else { # identify inflow segment names
+      records_in_subws = inflow_segs$stream_tab_colname[inflow_segs$subws_ID==i]
+    }
+
+    if(length(records_in_subws)==1){ # if only one inflow segment in the subwatershed
+      # Assign subwatershed flow to single stream record
+      outdf[,records_in_subws] = all_tribs_df[,records_in_subws]
+    } else {
+      # Assign subwatershed flow to monthly sum of stream records
+      outdf[,subws_colname]= rowSums(all_tribs_df[,records_in_subws])
+    }
+
+  }
+
+  # Arrange like original
+  outdf <- outdf[,c("Month",
+                    "Scott_River_Avg_Flow_m3day",
+                    "French_Avg_Flow_m3day",
+                    "Etna_Avg_Flow_m3day",
+                    "Patterson_Avg_Flow_m3day",
+                    "Kidder_Avg_Flow_m3day",
+                    "Moffett_Avg_Flow_m3day",
+                    "Mill_Avg_Flow_m3day",
+                    "Shackleford_Avg_Flow_m3day")]
 
   if (verbose) {message(paste('Writing file: ', filename))}
 

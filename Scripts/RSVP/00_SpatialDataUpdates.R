@@ -147,19 +147,36 @@ get_polygons_ksat <- function(show_map = F, svihm_fields) {
 #'
 #'
 #'
-get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields) {
+get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields, poly_tab) {
 
-  # Currently a placeholder. Not currently worth it to actually assign ISEGs, since
+  svihm_fields$subws = poly_tab$subws_ID[match(svihm_fields$Polynmbr, poly_tab$SWBM_id)]
+
+  # Read in SFR routing and tributary inflow segment info
+  sfr_routing = read.table(file = file.path(data_dir["time_indep_dir","loc"], "SFR_Routing.txt"),
+                           header = T, comment.char = "!")
+  sfr_inflows = read.table(file = file.path(data_dir["time_indep_dir","loc"], "SFR_inflow_segments.txt"),
+                           header = T, comment.char = "!", sep = "\t")
+  # Assign a downstream segment to each inflow segment
+  sfr_inflows$outseg = sfr_routing$OUTSEG[match(sfr_inflows$ISEG, sfr_routing$NSEG)]
+  # Identify only one downstream segment for each subwatershed (since fields are located within a subws)
+  sfr_inflows$outseg[sfr_inflows$subws_name == "Patterson"] = max(sfr_inflows$outseg[sfr_inflows$subws_name == "Patterson"])
+  outseg_df = sfr_inflows[,c("subws_ID","outseg")]
+  outseg_df = outseg_df[!duplicated(outseg_df),]
+  # Assign to svihm_fields
+  runoff_iseg_vector = outseg_df$outseg[match(svihm_fields$subws, outseg_df$subws_ID)]
+  return(runoff_iseg_vector)
+
+  # Preserving the below code comments for posterity
+
+  # Prior to 4/2023: Currently a placeholder. Not currently worth it to actually assign ISEGs, since
   # diversions get allocated in SWBM based on set fraction of subwatershed demand to each inflow point.
-
-
 
   # Scratch work trying to figure this out:
 
-  plot(svihm_fields$geometry, col = as.factor(svihm_fields$Trib_2011))
+  # plot(svihm_fields$geometry, col = as.factor(svihm_fields$Trib_2011))
 
   # Assign subwatershed to old Tributary_2011 field before making modifications
-  svihm_fields$subws = svihm_fields$Trib_2011
+  # svihm_fields$subws = svihm_fields$Trib_2011
 
   # Difficult to identify the inflow segment for some fields without completely redoing
   # the spatial analysis (and possibly messing with calibration)
@@ -202,8 +219,7 @@ get_polygons_runoff_ISEG <- function(show_map = F, svihm_fields) {
   # Oh I see. All the "Undetermined" polygons got attached to the East Fork, South Fork, Sugar creek combined inflow.
   # Undetermined = subws 9 in poly_tab.
 
-  svihm_fields$subws = poly_tab$subws_ID[match(svihm_fields$Polynmbr, poly_tab$SWBM_id)]
-  plot(svihm_fields$geometry, col = svihm_fields$subws)
+  # plot(svihm_fields$geometry, col = svihm_fields$subws)
 
 
 
@@ -253,7 +269,7 @@ save_updated_polygons_table_txt = function(){
 
   # If this is the old (2018) version of polytab, rename columns to match new (2022) SWBM version
   # and attach ksat soil property
-  if(!is.element(el="max_infil_rate)", colnames(poly_tab))){
+  if(!is.element(el="max_infil_rate", colnames(poly_tab))){
     colnames(poly_tab) = c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
                            "AWCcmprcm","Initial_fill_fraction","WL_2_CP_Yr","ILR_Flag","Notes")
 
@@ -268,19 +284,19 @@ save_updated_polygons_table_txt = function(){
     # Attach infil rates to poly_tab
     poly_tab$max_infil_rate = infil_tab$ksat_m_day[match(poly_tab$SWBM_id, infil_tab$field_id)]
 
-    # Assign inflow segments to each field.
-    sfr_inflow_segs = read.table(file.path(data_dir["ref_data_dir","loc"],"SFR_inflow_segments.txt"),
-                                 # comment.char = "!",
-                                 sep = "\t", header = T)
-    # UPDATE: Going to skip this and see if it breaks. Assign each runoff_ISEG to 0 (a nonexistent segment)
-    poly_tab$runoff_ISEG = 0
-
     # Reorder columns to match new (2022) format
     poly_tab = poly_tab[,c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
                            "AWCcmprcm","Initial_fill_fraction","max_infil_rate","runoff_ISEG",
                            "WL_2_CP_Yr","ILR_Flag", "Notes")]
 
   }
+
+  # Revise the subwatershed IDs to match new SFR setup (Scott River and Scott Tailings now one subws?)
+  # Reassign subwatershed 9 (Scott River) to Subwatershed 1 (Scott Tailings), since they draw from the same inflow source
+  poly_tab$subws_ID[poly_tab$subws_ID == 9] = 1
+
+  # Assign runoff_ISEG to the segment downstream of each respective subwatershed
+  poly_tab$runoff_ISEG = get_polygons_runoff_ISEG(svihm_fields=svihm_fields, poly_tab=poly_tab)
 
   # Convert the ILR Flag 1s and 0s (in the 2018 version) to logicals
   poly_tab$ILR_Flag=as.logical(poly_tab$ILR_Flag)
@@ -556,6 +572,53 @@ save_scott_parcels_shapefile = function(){
   file.remove(file.path(ref_dir,paste("Siskiyou_Parcels_Public", extension_list, sep = ".")))
 
 }
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Checks for consistency between land use types in polygons_table.txt input file
+#' in 2018 and 2022 SWBM versions.
+#'
+#' @return Nothing
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+
+check_fields_match = function(){
+  dir_2023 = file.path(data_dir["svihm_dir","loc"],"Run", "SWBM")
+  dir_2018 = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+  # Read in reference csv of poly_tab
+  poly_tab_23 = read.table(file.path(dir_2023,"polygons_table.txt"),
+                      header = T)
+  poly_tab_18 = read.csv(file.path(data_dir["ref_data_dir","loc"],
+                                   "polygons_table_ref.csv"), header = T)
+
+  # Read in fields spatial file for spatial relation
+  svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+
+  poly2 = svihm_fields
+
+  poly2$lu_2023 = poly_tab_23$SWBM_LU[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$lu_2018 = poly_tab_18$SWBM_LU[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+
+  #translate land use codes
+  lu_2018 = c(25,25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
+  lu_descrip = c("Alfalfa","Grain","Pasture","ET_noIrr","noET_noIrr", "Water")
+  lu_color = c("forestgreen","forestgreen","darkolivegreen2","wheat","red","dodgerblue")
+  lu_2022 = c(1,2,3,4,5,6)
+  lu_df = data.frame(lu_code = lu_2018, lu_descrip = lu_descrip, color = lu_color, lu_code_22 = lu_2022)
+
+  poly2$lu_2018_translated = lu_df$lu_code_22[match(poly2$lu_2018, lu_df$lu_code)]
+
+  sum(poly2$lu_2018_translated==poly2$lu_2023)/nrow(poly2)*100
+  # As of 4/19/2023, answer is 100%
+  # OK, great. the land uses all fucking match. why is the recharge so different.
+}
+
+
 
 #' # ------------------------------------------------------------------------------------------------#
 #'

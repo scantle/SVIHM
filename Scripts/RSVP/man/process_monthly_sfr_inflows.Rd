@@ -7,6 +7,7 @@
 process_monthly_sfr_inflows(
   model_start_date,
   model_end_date,
+  scenario_id,
   stream_inflow_filename,
   avail_for_irr = T,
   instream_flow_regime = NA

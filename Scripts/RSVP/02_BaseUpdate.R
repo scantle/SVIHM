@@ -41,7 +41,7 @@ fjd$Date <- as.Date(fjd$Date)
 #                                               fort_jones_flows = fjd)
 
 
-sfr_subws_flow_partitioning <- gen_monthly_sfr_flow_partition(model_start_date, model_end_date)
+sfr_subws_flow_partitioning <- gen_monthly_sfr_flow_partition(model_start_date, model_end_date, update_dir)
 subws_inflow_filename = file.path(update_dir,"streamflow_input.txt")
 subws_irr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_date,
                                              stream_inflow_filename = subws_inflow_filename,

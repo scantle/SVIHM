@@ -19,7 +19,8 @@
 #' @examples
 gen_monthly_sfr_flow_partition <- function(model_start_date,
                                      model_end_date,
-                                     unchanging_partition = T) {
+                                     update_dir,
+                                     unchanging_partition = F) {
   model_months = seq(from = model_start_date, to = model_end_date, by = "months")
 
   if(unchanging_partition){
@@ -52,11 +53,47 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
       # Assign the uniform partition values for the full model period
       sfr_part_tab[,sfr_unchang_part$inflow_seg_name[i]] = sfr_unchang_part$partition[i]
     }
-  } else {
+  } else { # calculate partitioning based on stream records
+    stream_tab = read.table(file = file.path(update_dir,"streamflow_records_regressed.txt"), header=T)
+    inflow_segs = read.table(file = file.path( data_dir["time_indep_dir",'loc'], "SFR_inflow_segments.txt"),
+                             comment.char = "!", header = T, row.names = NULL, sep = "\t")
+    n_subws = length(unique(inflow_segs$subws_ID))# number of subwatersheds
 
-    # Placeholder - CK will populate after confirm from GT what data/
-    # method is necessary to calculate the monthly-changing
-    # values for SFR_subws_flow_partitioning.txt.
+    # associate stream record colname with each inflow segment
+    stream_tab_colname = gsub(x = inflow_segs$stream_name, pattern = "Creek", replacement = "")
+    stream_tab_colname = trimws(stream_tab_colname)
+    stream_tab_colname = gsub(x = stream_tab_colname, pattern = " ", replacement = "_")
+    inflow_segs$stream_tab_colname = paste0(stream_tab_colname, "_Avg_Flow_m3day")
+
+    #Initialize monthly partition table
+    sfr_part_tab = data.frame(modelMonth = model_months)
+    sfr_part_matrix = matrix(data = NA, nrow = nrow(sfr_part_tab), ncol = ncol(stream_tab))
+    sfr_part_tab = cbind(sfr_part_tab, sfr_part_matrix)
+    colnames(sfr_part_tab)[2:ncol(sfr_part_tab)] = inflow_segs$stream_name
+
+    for(i in 1:nrow(sfr_part_tab)){ # for each month
+      for(j in 1:n_subws){ # for each subwatershed
+        # identify inflow segment names
+        tribs_in_subws = inflow_segs$stream_name[inflow_segs$subws_ID==j]
+
+        if(inflow_segs$subws_name[inflow_segs$subws_ID==j][1]=="French"){ # For French Creek drainage
+          # Assign 50% flow to each French Creek inflow segment
+          flow_partition = 0.5
+          sfr_part_tab[i,tribs_in_subws] = flow_partition
+        } else {
+          # isolate flow for month i in all inflow tribs in subwatershed j
+          stream_tab_names = inflow_segs$stream_tab_colname[inflow_segs$subws_ID==j]
+          flow_in_tribs = stream_tab[i,stream_tab_names]
+          # calculate proportion of flow for each inflow segment
+          total_flow = sum(flow_in_tribs)
+          flow_partition = flow_in_tribs/total_flow
+          # Assign total flow proportion to each inflow segment
+          sfr_part_tab[i,tribs_in_subws] = flow_partition#[match(colnames(flow_in_tribs), stream_tab_names)]
+        }
+
+      }
+    }
+
 
   }
 
