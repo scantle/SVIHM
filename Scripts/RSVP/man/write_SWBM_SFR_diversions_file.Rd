@@ -9,8 +9,8 @@ write_SWBM_SFR_diversions_file(
   output_dir,
   num_divs = 2,
   iseg_for_divs = c(3, 10),
-  iprior_for_divs = c(0, 0),
-  flow_for_divs = c(0, 0),
+  iprior_for_divs = c(1, 1),
+  flow_for_divs = c(19600, 39100),
   verbose = T
 )
 }

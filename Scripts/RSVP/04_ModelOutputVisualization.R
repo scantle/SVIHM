@@ -38,6 +38,9 @@ wy_start = as.numeric(gen_inputs[[1]][2])
 start_date = as.Date(paste0(wy_start-1,"-10-01"))
 n_stress = as.numeric(gen_inputs[[2]][3])
 
+# Output controls
+WRITE_SW_BUDGET = T # saves soil water budget tables as .csvs
+
 #-------------------------------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#
@@ -210,6 +213,7 @@ dev.off()
 #-------------------------------------------------------------------------------------------------#
 # Streamflow Maps ------------------------------------------------------
 
+# mf_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
 
 # Read and process streamflow data - output from modflow
 sfr_glob_text = readLines(file.path(mf_dir, "Streamflow_Global.dat"))
@@ -222,7 +226,7 @@ colname_list = c("LAYER", "ROW","COL", "STREAM_SEG_NO", "RCH_NO", "FLOW_INTO_STR
                  "STREAMBED_CONDCTNC","STREAMBED_GRADIENT")
 
 # Reading SFR data takes ~5 mins. Save to an .RDS file for convenience
-if(!file.exists(file.path(plot_data_dir, "sfr_reach_array.RDS"))){
+if(!file.exists(file.path(out_dir, "sfr_reach_array.RDS"))){
   # Initialize array
   reach_array = array(data=NA, dim = c(length(start_rows), n_reach, 16))
   # Process SFR values into an array of row, column, and stress period
@@ -237,14 +241,14 @@ if(!file.exists(file.path(plot_data_dir, "sfr_reach_array.RDS"))){
   }
   # Save giant reach file as .Rdata
   # saveRDS(object=reach_array,file=file.path(plot_data_dir,"sfr_reach_array.Rdata"))
-  saveRDS(object=reach_array,file=file.path(plot_data_dir,"sfr_reach_array.rds"))
-} else { reach_array = readRDS(file.path(plot_data_dir,"sfr_reach_array.RDS"))}
+  saveRDS(object=reach_array,file=file.path(out_dir,"sfr_reach_array.rds"))
+} else { reach_array = readRDS(file.path(out_dir,"sfr_reach_array.RDS"))}
 
 
 # #Calculate breaks (for the legend and color coding)
 
 # Breaks for flow
-# max(as.numeric(as.character(reach_array[,,8]))) # max flow out
+max(as.numeric(as.character(reach_array[,,8]))) # max flow out
 # breaks_flow = c(10^(0:7))
 # max(as.numeric(as.character(reach_array[,,13])))
 
@@ -379,26 +383,30 @@ dev.off()
 #-------------------------------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#
-# Volumetric Budget - SWBM ------------------------------------------------------
+# Volumetric Budget - SWBM - Annual bar graph ------------------------------------------------------
 # swbm_dir = run_dir
-# swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+# swbm_dir_18 = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
 # SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Storage')
 # SWBM_colors = c('lightblue1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'black' )
 
+# plot setup
 SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Runoff', 'Storage','Error')
 SWBM_colors = c('lightblue1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'mistyrose','black','gray' )
-
+# Read in and clean data frame
 SWBM_Monthly_m3 = read.table(file.path(swbm_dir,'monthly_water_budget.dat'), header = T)
 names(SWBM_Monthly_m3) = c('Month',SWBM_Terms)
+SWBM_Monthly_m3$Month = seq.Date(from = origin_date+1, by = "month", length.out = n_stress)
+
+if(WRITE_SW_BUDGET == TRUE){write.csv(x = SWBM_Monthly_m3, file = file.path(out_dir, "SWBM Monthly Budget.csv"), row.names=F, quote=F)}
 n_stress = nrow(SWBM_Monthly_m3)
 
-# process dates for plotting
-SWBM_Monthly_m3$Month = seq.Date(from = origin_date, by = "month", length.out = n_stress)
+# process dates for plotting - aggregate to annual
 SWBM_Monthly_m3$WY = year(SWBM_Monthly_m3$Month)
 SWBM_Monthly_m3$WY[month(SWBM_Monthly_m3$Month)>9] = year(SWBM_Monthly_m3$Month[month(SWBM_Monthly_m3$Month)>9]) +1
 SWBM_Monthly_m3$Month = format(seq(origin_date, by = "month", length.out = n_stress),'%b-%Y')
-
 SWBM_Annual_m3 = aggregate(.~WY,SWBM_Monthly_m3[,!names(SWBM_Monthly_m3)%in% c('Month',"Stress_Period")], FUN = sum)
+# write.csv(x = SWBM_Annual_m3, file=file.path(out_dir, "SWBM Annual Budget_2018.csv"), row.names = F, quote = F)
+if(WRITE_SW_BUDGET == TRUE){write.csv(x = SWBM_Annual_m3, file=file.path(out_dir, "SWBM Annual Budget.csv"), row.names = F, quote = F)}
 
 # melt data for plot
 SWBM_Annual_m3_melt = melt(SWBM_Annual_m3, id.vars = 'WY')
@@ -409,9 +417,9 @@ SWBM_Annual_m3_melt = SWBM_Annual_m3_melt[order(SWBM_Annual_m3_melt$variable),]
 SWBM_Annual_Mm3_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value/1E6)) +
   geom_bar(aes(fill = variable), position = "stack",
            stat = 'identity', color = 'black', width = 0.95, size = 0.1) +
-  scale_x_continuous(limits = range(SWBM_Annual_m3$WY),
+  # scale_x_continuous(limits = range(SWBM_Annual_m3$WY),
                      #breaks = seq(1991,2011,by = 2),
-                     expand = c(0,0))  +
+                     # expand = c(0,0))  +
   scale_y_continuous(limits = c(-300,300), breaks = seq(-300,300,by = 100), expand = c(0,0)) +
   xlab('') +
   ylab(bquote('Volume ('*Mm^3*')')) +
@@ -429,6 +437,9 @@ SWBM_Annual_Mm3_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value/1E6)) +
         legend.direction = 'horizontal',
         legend.text = element_text(size = 6, margin = margin(r=1,l=1, unit = 'pt')),
         legend.key.height = unit(10,'pt'))
+
+# ggsave(filename = file.path(out_dir, "Annual Budget Barplot.png"), plot = SWBM_Annual_Mm3_Plot)
+
 
 SWBM_Annual_TAF_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value*0.000810714/1000)) +
   geom_bar(aes(fill = variable), position = "stack", stat = 'identity', color = 'black', width = 0.95, size = 0.1) +
@@ -452,28 +463,88 @@ SWBM_Annual_TAF_Plot = ggplot(SWBM_Annual_m3_melt, aes(x = WY, y = value*0.00081
         legend.key.height = unit(10,'pt'))
 
 
+
+
 # SWBM Budget troubleshooting 4/6/2023
 
-old_swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
-new_swbm_dir = swbm_dir
+# old_swbm_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+# new_swbm_dir = swbm_dir
+#
+# old_poly = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
+#                     header = T)
+# new_poly = read.table(file.path(new_swbm_dir, "polygons_table.txt"), header = T)
+#
+# table(old_poly$SWBM_IRR)
+# table(new_poly$SWBM_IRR)
+#
+# old_wb=read.table(file.path(old_swbm_dir, "monthly_water_budget.dat"), header = T)
+# new_wb = read.table(file.path(new_swbm_dir, "monthly_water_budget.dat"), header = T)
+# new_wb = new_wb[1:336,]
+#
+#
+# stream_new_over_old = (new_wb$SW_Irr-old_wb$SW_Irr)/old_wb$SW_Irr
+# gw_new_over_old = new_wb$GW_Irr/old_wb$GW_Irr
+# summary(new_wb$GW_Irr); summary(old_wb$GW_Irr)
+# summary(new_wb$SW_Irr); summary(old_wb$SW_Irr)
+# summary(new_wb$Precip); summary(old_wb$Precip)
 
-old_poly = read.csv(file.path(data_dir["ref_data_dir","loc"],"polygons_table_ref.csv"),
-                    header = T)
-new_poly = read.table(file.path(new_swbm_dir, "polygons_table.txt"), header = T)
-
-table(old_poly$SWBM_IRR)
-table(new_poly$SWBM_IRR)
-
-old_wb=read.table(file.path(old_swbm_dir, "monthly_water_budget.dat"), header = T)
-new_wb = read.table(file.path(new_swbm_dir, "monthly_water_budget.dat"), header = T)
-new_wb = new_wb[1:336,]
+swbm_dir_18 = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+SWBM_Monthly_m3_18 = read.table(file.path(swbm_dir_18,'monthly_water_budget.dat'), header = T)
+summary(SWBM_Monthly_m3$Precip[1:nrow(SWBM_Monthly_m3_18)] / SWBM_Monthly_m3_18$Precip)
+summary(SWBM_Monthly_m3$SW_Irr[1:nrow(SWBM_Monthly_m3_18)] / SWBM_Monthly_m3_18$SW_Irr)
+hist(SWBM_Monthly_m3$GW_Irr[1:nrow(SWBM_Monthly_m3_18)] / SWBM_Monthly_m3_18$GW_Irr)
+summary(SWBM_Monthly_m3$ET[1:nrow(SWBM_Monthly_m3_18)] / SWBM_Monthly_m3_18$ET)
 
 
-stream_new_over_old = (new_wb$SW_Irr-old_wb$SW_Irr)/old_wb$SW_Irr
-gw_new_over_old = new_wb$GW_Irr/old_wb$GW_Irr
-summary(new_wb$GW_Irr); summary(old_wb$GW_Irr)
-summary(new_wb$SW_Irr); summary(old_wb$SW_Irr)
-summary(new_wb$Precip); summary(old_wb$Precip)
+#-------------------------------------------------------------------------------------------------#
+
+#-------------------------------------------------------------------------------------------------#
+# Volumetric Budget - SWBM - Monthly bar graph ------------------------------------------------------
+
+# plot setup
+SWBM_Terms = c('Precipitation', 'SW Irrigation', 'GW Irrigation', 'ET', 'Recharge', 'Runoff', 'Storage','Error')
+SWBM_colors = c('darkorchid1',  'darkcyan', 'midnightblue', 'goldenrod','green4', 'coral1','black', NA )
+# Read in and clean data frame
+SWBM_Monthly_m3 = read.table(file.path(swbm_dir,'monthly_water_budget.dat'), header = T)
+names(SWBM_Monthly_m3) = c('Month',SWBM_Terms)
+n_stress = nrow(SWBM_Monthly_m3)
+
+# process dates for plotting
+SWBM_Monthly_m3$Month = seq.Date(from = origin_date, by = "month", length.out = n_stress)
+SWBM_Monthly_m3$Error=NULL
+# SWBM_Monthly_m3_for_melt = SWBM_Monthly_m3[,colnames(SWBM_Monthly_m3!="Error")]
+SWBM_Monthly_m3_melt = melt(SWBM_Monthly_m3, id.vars = 'Month')
+
+# Set water year
+pdf(file = file.path(out_dir, "Monthly Budget Plots.pdf"), width = 8.5, height = 11/2)
+for(wy in 1991:2021){ # wy = 1995
+  this_wy = wy
+  datelims = as.Date(paste0(c(this_wy-1, this_wy), "-10-01"))
+  # Make monthly line plot
+  # SWBM_Monthly_Mm3_Plot =
+  print(ggplot(SWBM_Monthly_m3_melt, aes(x = Month, y = value/1E6, color=variable)) +
+    geom_line(size=2) +
+    scale_color_manual(values = SWBM_colors) +
+    scale_x_continuous(limits = datelims) +
+    xlab('') +
+    ylab(bquote('Volume ('*Mm^3*')')) +
+    ggtitle(paste('Soil Zone Monthly Budget, WY', this_wy)) +
+    theme(legend.title=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_rect(color = 'black', fill = NA),
+          plot.background = element_rect(color = NA, fill = NA),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.7),
+          axis.text = element_text(size = 8),
+          plot.title = element_text(hjust = 0.5),
+          legend.position = c(0.25, 0.95),
+          legend.key = element_rect(fill = NA, color = NA),
+          legend.background = element_rect(fill = NA, color = NA),
+          legend.direction = 'horizontal',
+          legend.text = element_text(size = 6, margin = margin(r=1,l=1, unit = 'pt')),
+          legend.key.height = unit(10,'pt'))
+  )
+}
+dev.off()
+
 
 
 #-------------------------------------------------------------------------------------------------#
@@ -511,6 +582,86 @@ p <- rmf_plot(bud, dis = mfdis, type='bar', what='cumulative', fluxes=c('storage
 print(p)
 # Done
 dev.off()
+
+#-------------------------------------------------------------------------------------------------#
+
+#-------------------------------------------------------------------------------------------------#
+# Change in Storage - MF and SWBM -------------------------------------------------------
+
+
+# change_in_storage_figure = function(SWBM_Monthly_m3, MODFLOW_Monthly_m3,
+#                                     wy_annotations = F, end_wy = 2018,
+#                                     start_date = as.Date("1990-10-01"),end_date = as.Date("2018-09-30")){
+#
+#   SWBM_Monthly_Storage_Plot = function(SWBM_Monthly_m3, end_wy = 2018,
+#                                        start_date = as.Date("1990-10-01"),end_date = as.Date("2018-09-30")){
+#
+#     ggplot(data = SWBM_Monthly_m3,
+#            aes(x = as.Date(paste0(Month,'-01'),'%b-%Y-%d'),
+#                # y = (-cumsum(SWBM_Monthly_m3$Storage)/1E6)-mean((-cumsum(SWBM_Monthly_m3$Storage)/1E6)))) +
+#                y = (-cumsum(SWBM_Monthly_m3$Storage*m3_to_TAF))-mean((-cumsum(SWBM_Monthly_m3$Storage* m3_to_TAF))))) +
+#       geom_vline(mapping=NULL, linetype = 2, size = 0.5, colour="gray", xintercept = seq(as.Date("1990-10-01"), as.Date("2018-10-01"), by = "5 year"))+
+#       geom_hline(mapping=NULL, linetype = 2, size = 0.5, colour="gray", yintercept = seq(-20,20, by = 5))+
+#       geom_hline(yintercept = 0, size = 0.25) +
+#       geom_line(size = 0.5) +
+#       geom_point(size = 0.75) +
+#       scale_x_date(limits = c(as.Date('Oct-01-1990', format = '%b-%m-%y'),
+#                               as.Date(paste0('Oct-01-',end_wy), format = '%b-%m-%y')),
+#                    breaks = seq(as.Date("1990/10/1"), by = "2 years", length.out = nstress/12+1), expand = c(0,0),
+#                    date_labels = ('%b-%y'))  +
+#       scale_y_continuous(limits = c(-20,20), breaks = seq(-20,20,by = 5), expand = c(0,0)) +
+#       ylab(ylab(bquote('Relative Soil Storage (TAF)'))) +
+#       ggtitle('Monthly Relative Soil Storage') +
+#       theme(panel.background = element_blank(),
+#             panel.border = element_rect(fill=NA, color = 'black'),
+#             axis.text.x = element_text(angle = 45, hjust = 1, vjust= 0.7, size = 8),
+#             axis.text.y = element_text(size = 8),
+#             axis.ticks = element_line(size = 0.2),
+#             plot.title = element_text(hjust = 0.5, size = 10),
+#             axis.title.x = element_blank(),
+#             axis.title.y = element_text(size = 8)
+#       )
+#   }
+#   MODFLOW_Monthly_Storage_Change = function(MODFLOW_Monthly_m3, end_wy = 2018,
+#                                             start_date = as.Date("1990-10-01"),end_date = as.Date("2018-09-30")){
+#     MODFLOW_Monthly_Storage_Change_Plot = ggplot(data = MODFLOW_Monthly_m3,
+#                                                  aes(x = seq(start_date,as.Date(paste0(end_wy,'-09-30')),by = 'month'),
+#                                                      y = -cumsum(Storage)*m3_to_TAF)) +
+#       geom_vline(mapping=NULL, linetype = 2, size = 0.5, colour="gray", xintercept = seq(start_date, end_date, by = "5 year"))+
+#       geom_hline(mapping=NULL, linetype = 2, size = 0.5, colour="gray", yintercept = seq(-50,50, by = 25))+
+#       geom_hline(yintercept = 0, size = 0.25) +
+#       geom_line(size = 0.5)  +
+#       geom_point(size = 0.75) +
+#       scale_x_date(limits = c(as.Date('Oct-01-1990', format = '%b-%m-%y'),
+#                               as.Date(paste0('Oct-01-',end_wy), format = '%b-%m-%y')),
+#                    breaks = seq(as.Date("1990/10/1"), by = "2 years", length.out = nstress/12+1), expand = c(0,0),
+#                    date_labels = ('%b-%y'))  +
+#       scale_y_continuous(limits = c(-50,50), breaks = seq(-50,50,by = 25), expand = c(0,0)) +
+#       ylab(ylab(bquote('Relative Aquifer Storage (TAF)'))) +
+#       ggtitle('Monthly Relative Aquifer Storage') +
+#       theme(panel.background = element_blank(),
+#             panel.border = element_rect(fill=NA, color = 'black'),
+#             axis.text.x = element_text(angle = 45, hjust = 1, vjust= 0.7, size = 8),
+#             axis.text.y = element_text(size = 8),
+#             axis.ticks = element_line(size = 0.2),
+#             plot.title = element_text(hjust = 0.5, size = 10),
+#             axis.title.x = element_blank(),
+#             axis.title.y = element_text(size = 8)
+#       )
+#     return(MODFLOW_Monthly_Storage_Change_Plot)
+#   }
+#
+#   if(wy_annotations == T){
+#     MODFLOW_Monthly_Storage_Change(SWBM_Monthly_m3)
+#   } else {
+#     grid.newpage()
+#     pushViewport(viewport(layout = grid.layout(2,1)))
+#     vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+#     print(SWBM_Monthly_Storage_Plot(SWBM_Monthly_m3, end_wy = 2018),vp = vplayout(1,1))
+#     print(MODFLOW_Monthly_Storage_Change(MODFLOW_Monthly_m3, end_wy = 2018), vp = vplayout(2,1))
+#
+#   }
+
 #-------------------------------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#

@@ -55,7 +55,9 @@ subws_nonirr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_
 # Write SWBM Inputs -------------------------------------------------------
 
 # Main input file
-write_SWBM_gen_inputs_file(num_stress_periods = num_stress_periods, output_dir = update_dir)
+write_SWBM_gen_inputs_file(num_stress_periods = num_stress_periods,
+                           output_dir = update_dir,
+                           scenario_id = current_scenario)
 
 # Stress Period Days file
 # Include stress period # and column names in input file
@@ -70,10 +72,6 @@ write_SWBM_drain_files(num_stress_periods = num_stress_periods, output_dir = upd
 # write_SWBM_instream_available_file(avail_monthly, output_dir = update_dir)
 
 # Crop coefficients
-# write_SWBM_crop_coefficient_file(kc_alfalfa, update_dir, 'kc_alfalfa.txt')
-# write_SWBM_crop_coefficient_file(kc_pasture, update_dir, 'kc_pasture.txt')
-# write_SWBM_crop_coefficient_file(kc_grain,   update_dir, 'kc_grain.txt')
-
 write_daily_crop_coeff_values_file(model_start_date, model_end_date, update_dir)
 
 # Surface flow / SFR files
@@ -122,13 +120,13 @@ update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
 
 # Batch File --------------------------------------------------------------
 
-# If necessary, create new batchfile for
-batch_file_name = paste0("Prepare_",current_scenario,"_Run.bat")
-if(!file.exists(file.path(data_dir["svihm_dir","loc"], batch_file_name))){
-  write_scenario_prep_batchfile(scenario_name = current_scenario)
-  }
+# batch_file_name = paste0("Prepare_",current_scenario,"_Run.bat")
+# if(!file.exists(file.path(data_dir["svihm_dir","loc"], batch_file_name))){
+#   write_scenario_prep_batchfile(scenario_name = current_scenario)
+#   }
 
 # Create new batchfile for assembling the updated model
-write_update_prep_batchfile(update_dir)
+write_update_prep_batchfile(update_dir = update_dir,
+                            scenario_name = current_scenario)
 
 

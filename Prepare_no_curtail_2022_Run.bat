@@ -1,6 +1,6 @@
 @setlocal
 @echo off
-set scen=basecase
+set scen=no_curtail_2022
 
 :: Intended to be run in the main SVIHM folder
 

@@ -145,12 +145,14 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        nAgWells = 167,
                                        nMuniWells = 0,
                                        nSubws = 8,
-                                       inflow_is_vol = TRUE,
+                                       inflow_is_vol = FALSE,
                                        nSFR_inflow_segs = 12,
                                        nrows = 440,
                                        ncols = 210,
                                        RD_Mult = 1.4,
                                        calib_software = "UCODE",
+                                       using_neighbor_irr_rule = TRUE,
+                                       scenario_id = "basecase",
                                        verbose=TRUE) {
 
 
@@ -162,7 +164,11 @@ write_SWBM_gen_inputs_file <- function(output_dir,
           "! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols",
           sep = "  "),
     paste(RD_Mult, calib_software, "! RD_Mult, UCODE/PEST",
-          sep = "  ") )
+          sep = "  "),
+    paste(using_neighbor_irr_rule, "! using_neighbor_irr_rule (do farmers look to neighbor behavior for irrigation onset [TRUE] or only own field's soil moisture [FALSE])",
+          sep = "  "),
+    paste(scenario_id, "!scenario_id (used only in postprocessing)"))
+
 
   if (verbose) {message(paste('Writing SWBM file: ', filename))}
   write.table(gen_inputs, file = file.path(output_dir, filename),
@@ -275,8 +281,8 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
                                            output_dir,
                                            num_divs = 2,
                                            iseg_for_divs = c(3,10), # Stream segment of diversion
-                                           iprior_for_divs = c(0,0), # Modflow param. for calc.
-                                           flow_for_divs = c(0,0),    # Flowrate (units? cfs?)
+                                           iprior_for_divs = c(1,1), # Modflow param. for calc.
+                                           flow_for_divs = c(19600, 39100),    # Flowrate (units m3/day)
                                            verbose = T) {
 
   sfr_divs = c(
@@ -567,45 +573,6 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 }
 
 
-# ------------------------------------------------------------------------------------------------#
-
-#' Write file specifying irrigation curtailment regulations/practices
-#'
-#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
-#'
-#' @return curtail_tab
-#' @export
-#'
-#' @examples
-#'
-#'
-#'
-write_SWBM_curtailment_file <- function(scenario_name = "basecase",
-                                        start_date,
-                                        n_stress) {
-
-  # reference build_field_value_df
-
-
-
-  # # Switch is to center pivot
-  # new_code <- swbm_irrtype['Center Pivot', 'Code']
-  #
-  # #-- Loop over years where changes occur
-  # for (yr in unique(update_table[update_table$Year>0,]$Year)) {  # when year==0 no data/change
-  #   id_cols <- update_table$ID[update_table$Year == yr]
-  #
-  #   if (verbose) {
-  #     message(paste('Year:', yr, '- ', length(id_cols), 'fields switched to center pivot (code =',new_code,')'))
-  #   }
-  #
-  #   irrtype_df[year(irrtype_df$Stress_Period) >= yr, paste0('ID_', id_cols)] <- new_code
-  # }
-  #
-  # return(irrtype_df)
-}
-
-
 
 # ------------------------------------------------------------------------------------------------#
 
@@ -622,7 +589,9 @@ write_SWBM_curtailment_file <- function(scenario_name = "basecase",
 #'
 write_SWBM_landcover_file <- function(scenario_id = "basecase",
                                       output_dir, start_date, end_date) {
-  recognized_scenarios = c("basecase")
+  recognized_basecase_landuse_scenarios = c("basecase", "no_curtail_2022")
+  recognized_scenarios = c(recognized_basecase_landuse_scenarios,
+                           "natveg_all") # placeholder for more landuse scenarios
   output_filename = "polygon_landcover_ids.txt"
 
   # pull reference land cover
@@ -645,8 +614,42 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
     field_df[,paste0("ID_",field_id)] = poly_tab$SWBM_LU[poly_tab$SWBM_id==field_id]
   }
 
-  if(tolower(scenario_id) == "basecase"){
+  # Write land cover file for scenarios with basecase land use
+  # i.e., no major crop changes or native vegetation coverage changes
+  if(tolower(scenario_id) %in% recognized_basecase_landuse_scenarios){
+    #Set fields equal to unchanging default
     landcover_output = field_df
+    # Then, Implement alfalfa-grain rotation
+    n_stress = length(seq.Date(from = start_date, to = end_date, by = "month"))
+    # Initialize a grain_months dataframe for allocating alfalfa-grain attributes in the for loop
+    grain_months = data.frame(month = field_df$Stress_Period)
+    grain_months$water_year = year(grain_months$month)
+    next_wy_indices = month(grain_months$month)>9
+    grain_months$water_year[next_wy_indices] = 1 +
+      grain_months$water_year[next_wy_indices]
+    grain_months$grain_year = grain_months$water_year - year(start_date)
+    grain_months$alf_1_grain_2 = 1
+
+    # n_rotating = sum(poly_tab$SWBM_LU==1) # how many fields are using alfalfa-grain rotation? Assume all alfalfa
+    # n_grain = n_rotating / 8 # 1 out of every 8 fields is grain at any given time. 8-yr schedule
+    field_rotator = 0 # initialize the eenie-meenie-miney-mo counter
+    for(i in 1:num_unique_fields){
+      if(poly_tab$SWBM_LU[poly_tab$SWBM_id==i]==1){ # If it's designated as alfalfa-type landuse
+        first_grain_year = field_rotator %% 8 + 1 # designate first year of grain rotation
+        grain_years = seq(from = first_grain_year, by = 8, to = n_stress)
+        grain_sp_indices = which(grain_months$grain_year %in% grain_years)
+        # print(grain_sp_indices)
+        grain_months$alf_1_grain_2[grain_sp_indices] = 2 # Assign grain to those stress periods
+
+        # Assign the alfalfa-grain vector to the output file
+        landcover_output[,paste0("ID_",i)] = grain_months$alf_1_grain_2
+        field_rotator = field_rotator + 1 # increment the counter
+
+        # reset alfalfa vector
+        grain_months$alf_1_grain_2 = 1
+
+      }
+    }
   }
 
   # if(tolower(scenario_id=="natveg")){} # Placeholder :
@@ -738,7 +741,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   library(sf)
   m2_to_acres = 1/4046.856
 
-  recognized_scenarios = c("basecase")
+  recognized_scenarios = c("basecase","no_curtail_2022")
   output_filename = "curtailment_fractions.txt"
   print(paste("Writing SWBM file:", output_filename))
 
@@ -1003,7 +1006,9 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   }
 
   ## Non-basecase scenarios ------------------------------------------------
-  # if(tolower(scenario_id=="natveg")){} # Placeholder :
+  if(tolower(scenario_id=="no_curtail_2022")){
+    curtail_output = field_df
+  } # Placeholder :
   # Replace default with new MAR vol file, and update recognized_scenarios
   # possible steps: read in fields and potentially adjudicated zone
   # potentially read in schedule of land use updates

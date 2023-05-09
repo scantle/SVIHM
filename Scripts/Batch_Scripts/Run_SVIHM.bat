@@ -76,6 +76,9 @@ if %mins% lss 0 set /a hours = %hours% - 1 & set /a mins = 60%mins%
 if %hours% lss 0 set /a hours = 24%hours%
 if 1%ms% lss 100 set ms=0%ms%
 
+:: The scenario ID gets specified in R, and copied into the batch script name.
+:: Is there a way to make a new directory inside Scenarios, with same name as the scenario id, and copy over all the file outputs?
+
 :: mission accomplished
 echo ----------------------------------------------------------------
 set /a totalsecs = %hours%*3600 + %mins%*60 + %secs% 

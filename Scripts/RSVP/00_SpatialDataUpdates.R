@@ -122,7 +122,10 @@ get_polygons_ksat <- function(show_map = F, svihm_fields) {
     field_ssurgo_intersect = st_intersection(y = field, x = ssurgo_3310)
     # Calculate area-weighted average saturated conductivity for each field
     ksat_m3_per_day = st_area(field_ssurgo_intersect) * field_ssurgo_intersect$ksat_m_day
-    ksat_m_day_avg = sum(ksat_m3_per_day) / sum(st_area(field_ssurgo_intersect))
+    remove_these = is.na(ksat_m3_per_day)
+    ksat_m3_per_day = ksat_m3_per_day[!remove_these]
+    areas = st_area(field_ssurgo_intersect)[!remove_these]
+    ksat_m_day_avg = sum(ksat_m3_per_day)/ sum(areas)
 
     output_tab$ksat_m_day_avg[output_tab$field_id==i] = ksat_m_day_avg
 
@@ -281,8 +284,62 @@ save_updated_polygons_table_txt = function(){
     # BEWARE: this takes like 10 minutes to compute intersections of all 2119 polygons. (Is sf slow?)
     infil_tab = get_polygons_ksat(svihm_fields = svihm_fields) # retrieve k_sat, max. infiltration rate
 
-    # Attach infil rates to poly_tab
-    poly_tab$max_infil_rate = infil_tab$ksat_m_day[match(poly_tab$SWBM_id, infil_tab$field_id)]
+    # Attach infil rates to spatial data
+    svihm_fields$max_infil_rate = infil_tab$ksat_m_day[match(svihm_fields$Polynmbr, infil_tab$field_id)]
+    # plot(svihm_fields[,"max_infil_rate"])
+    # Sort in order
+    svihm_fields = svihm_fields[order(svihm_fields$Polynmbr),]
+    # Fill in NA values
+    # Step 1: try to fill in values with mean of neighboring infiltration rate
+    na_field_ids = svihm_fields$Polynmbr[is.na(svihm_fields$max_infil_rate)]
+    for (i in na_field_ids){
+      field = svihm_fields[i,]
+      # plot(field$geometry)
+      # plot(svihm_fields, add=T)
+
+      # plot(svihm_fields$geometry)
+      # plot(field$geometry, add=T, col = "red", border = "red", lwd = 4)
+
+      neighbor_ids = st_intersects(x = field, y = svihm_fields)[[1]]
+      neighbor_ids = neighbor_ids[neighbor_ids != i] # get rid of target field ID
+
+      neighbor_ksats = svihm_fields$max_infil_rate[neighbor_ids]
+      # print(paste("Field ID",i))
+      # print(paste("Num. neighbors:", length(neighbor_ids)))
+      # print(paste("Neighbor ksats:",
+      #             paste(svihm_fields$max_infil_rate[neighbor_ids], collapse = ", ")))
+
+      # fill in missing ksat value
+      svihm_fields$max_infil_rate[svihm_fields$Polynmbr==i] =
+        mean(svihm_fields$max_infil_rate[neighbor_ids], na.rm=T)
+    }
+    # Step 2: for fields with no neighbors with infiltration rates, use bigger radius
+    # sum(is.na(svihm_fields$max_infil_rate)) # how many left?
+    na_field_ids = svihm_fields$Polynmbr[is.na(svihm_fields$max_infil_rate)]
+
+    for (i in na_field_ids){
+      field = svihm_fields[i,]
+      for(j in 100*c(1, 2, 3, 4, 5, 6, 7, 8)){
+        field_buffer = st_buffer(x = field, dist = j)
+        neighbors = st_intersects(field_buffer, svihm_fields)[[1]]
+        neighbor_ids = neighbor_ids[neighbor_ids != i] # get rid of target field ID
+        neighbor_ksats = svihm_fields$max_infil_rate[neighbor_ids]
+
+        if(sum(is.na(neighbor_ksats)) != length(neighbor_ksats)){
+          # fill in missing ksat value
+          svihm_fields$max_infil_rate[svihm_fields$Polynmbr==i] =
+            mean(svihm_fields$max_infil_rate[neighbor_ids], na.rm=T)
+          break
+        } else {
+          next
+        }
+      }
+    }
+
+    # plot(svihm_fields[,"max_infil_rate"])
+
+    # attach infil rate to poly_tab
+    poly_tab$max_infil_rate = svihm_fields$max_infil_rate[match(poly_tab$SWBM_id, svihm_fields$Polynmbr)]
 
     # Reorder columns to match new (2022) format
     poly_tab = poly_tab[,c("SWBM_id","subws_ID","SWBM_LU","SWBM_IRR","MF_Area_m2","WATERSOURC",
@@ -309,7 +366,7 @@ save_updated_polygons_table_txt = function(){
   # set everything that is 25 to alfalfa I guess.
   # still not sure how this is going to work with the fucking rotation though! (as of 2/24/2023)
   landcover_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"landcover_table.txt"),
-                               # comment.char = "!",
+                               comment.char = "!",
                                sep = "\t", header = T)
 
   lu_2018 = c(25,25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
@@ -601,6 +658,7 @@ check_fields_match = function(){
 
   poly2 = svihm_fields
 
+  # Assign poly_tab land use attributes to shapefile
   poly2$lu_2023 = poly_tab_23$SWBM_LU[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
   poly2$lu_2018 = poly_tab_18$SWBM_LU[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
 
@@ -616,7 +674,162 @@ check_fields_match = function(){
   sum(poly2$lu_2018_translated==poly2$lu_2023)/nrow(poly2)*100
   # As of 4/19/2023, answer is 100%
   # OK, great. the land uses all fucking match. why is the recharge so different.
+
+  # assign poly_tab water source attributes to shapefile
+  poly2$ws_2023 = poly_tab_23$WATERSOURC[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$ws_2018 = poly_tab_18$WATERSOURC[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  sum(poly2$ws_2023==poly2$ws_2018)/nrow(poly2)*100
+  # and the water sources all seem to match
+
+  # assign poly_tab water source attributes to shapefile
+  poly2$irr_2023 = poly_tab_23$SWBM_IRR[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$irr_2018 = poly_tab_18$SWBM_IRR[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  sum(poly2$irr_2023==poly2$irr_2018)/nrow(poly2)*100
+  # and the irrigation tech all seem to match
+
 }
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Checks for consistency between input files in 2018 and 2022 SWBM versions.
+#'
+#' @return Nothing
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+
+check_climate_inputs_match = function(){
+  dir_2023 = file.path(data_dir["svihm_dir","loc"],"Run", "SWBM")
+  dir_2018 = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+
+  # ET
+  et_23 = read.table(file.path(dir_2023,"ref_et.txt"), header = T)
+  et_18 = read.table(file.path(dir_2018,"ref_et.txt"), header = F)
+  colnames(et_18) = colnames(et_23)
+  #truncate et_23
+  et_23 = et_23[1:nrow(et_18),]
+  summary(et_23$ETo_m - et_18$ETo_m)
+  sum(!(et_23$ETo_m - et_18$ETo_m), na.rm=T)
+
+  hist(log(et_23$ETo_m - et_18$ETo_m))
+  plot(x = as.Date(et_23$Date, format = "%d/%m/%Y"), y = (et_23$ETo_m - et_18$ETo_m))
+  # Precip
+  ppt_23 = read.table(file.path(dir_2023,"precip.txt"), header = T)
+  ppt_18 = read.table(file.path(dir_2018,"precip.txt"), header = F)
+  colnames(ppt_18) = colnames(ppt_23)
+  #truncate
+  ppt_23 = ppt_23[1:nrow(ppt_18),]
+  plot(x = as.Date(ppt_23$Date, format = "%d/%m/%Y"),
+       y = (ppt_23$PRCP - ppt_18$PRCP))
+
+
+  # streams?
+  str_23 = read.table(file.path(dir_2023,"streamflow_records_regressed.txt"), header = T)
+  str_18 = read.table(file.path(dir_2018,"streamflow_input.txt"), header = T)
+  str_23 = str_23[1:nrow(str_18),]
+
+
+  # # Read in fields spatial file for spatial relation
+  # svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+  #
+  # poly2 = svihm_fields
+  #
+  # # Assign poly_tab land use attributes to shapefile
+  # poly2$lu_2023 = poly_tab_23$SWBM_LU[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  # poly2$lu_2018 = poly_tab_18$SWBM_LU[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  #
+  # #translate land use codes
+  # lu_2018 = c(25,25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
+  # lu_descrip = c("Alfalfa","Grain","Pasture","ET_noIrr","noET_noIrr", "Water")
+  # lu_color = c("forestgreen","forestgreen","darkolivegreen2","wheat","red","dodgerblue")
+  # lu_2022 = c(1,2,3,4,5,6)
+  # lu_df = data.frame(lu_code = lu_2018, lu_descrip = lu_descrip, color = lu_color, lu_code_22 = lu_2022)
+  #
+  # poly2$lu_2018_translated = lu_df$lu_code_22[match(poly2$lu_2018, lu_df$lu_code)]
+  #
+  # sum(poly2$lu_2018_translated==poly2$lu_2023)/nrow(poly2)*100
+  # # As of 4/19/2023, answer is 100%
+  # # OK, great. the land uses all fucking match. why is the recharge so different.
+  #
+  # # assign poly_tab water source attributes to shapefile
+  # poly2$ws_2023 = poly_tab_23$WATERSOURC[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  # poly2$ws_2018 = poly_tab_18$WATERSOURC[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  # sum(poly2$ws_2023==poly2$ws_2018)/nrow(poly2)*100
+  # # and the water sources all seem to match
+  #
+  # # assign poly_tab water source attributes to shapefile
+  # poly2$irr_2023 = poly_tab_23$SWBM_IRR[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  # poly2$irr_2018 = poly_tab_18$SWBM_IRR[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  # sum(poly2$irr_2023==poly2$irr_2018)/nrow(poly2)*100
+  # # and the irrigation tech all seem to match
+
+}
+
+# ------------------------------------------------------------------------------------------------#
+
+#' Checks for consistency between land use types in polygons_table.txt input file
+#' in 2018 and 2022 SWBM versions.
+#'
+#' @return Nothing
+#' @export
+#'
+#' @examples
+#'
+#'
+#'
+#'
+
+update_polygons_ksat_diagnostic = function(){
+
+  dir_2023 = file.path(data_dir["svihm_dir","loc"],"Run", "SWBM")
+  # Read in reference csv of poly_tab
+  poly_tab = read.table(file.path(dir_2023,"polygons_table.txt"),
+                           header = T)
+  # Set all max infiltrtion rates to be insanely high
+  hist(poly_tab$max_infil_rate)
+  summary(poly_tab$max_infil_rate)
+  # Damn. they already are insanely high. Lots of >1 m per day, I think
+
+  # Read in fields spatial file for spatial relation
+  svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
+
+  poly2 = svihm_fields
+
+  # Assign poly_tab land use attributes to shapefile
+  poly2$lu_2023 = poly_tab_23$SWBM_LU[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$lu_2018 = poly_tab_18$SWBM_LU[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+
+  #translate land use codes
+  lu_2018 = c(25,25,2,3,4,6) # old categories in 2018 model. Possible update? # lu = c(1,2,3,4,5,6), add Grain as explit new category
+  lu_descrip = c("Alfalfa","Grain","Pasture","ET_noIrr","noET_noIrr", "Water")
+  lu_color = c("forestgreen","forestgreen","darkolivegreen2","wheat","red","dodgerblue")
+  lu_2022 = c(1,2,3,4,5,6)
+  lu_df = data.frame(lu_code = lu_2018, lu_descrip = lu_descrip, color = lu_color, lu_code_22 = lu_2022)
+
+  poly2$lu_2018_translated = lu_df$lu_code_22[match(poly2$lu_2018, lu_df$lu_code)]
+
+  sum(poly2$lu_2018_translated==poly2$lu_2023)/nrow(poly2)*100
+  # As of 4/19/2023, answer is 100%
+  # OK, great. the land uses all fucking match. why is the recharge so different.
+
+  # assign poly_tab water source attributes to shapefile
+  poly2$ws_2023 = poly_tab_23$WATERSOURC[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$ws_2018 = poly_tab_18$WATERSOURC[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  sum(poly2$ws_2023==poly2$ws_2018)/nrow(poly2)*100
+  # and the water sources all seem to match
+
+  # assign poly_tab water source attributes to shapefile
+  poly2$irr_2023 = poly_tab_23$SWBM_IRR[match(poly2$Polynmbr, poly_tab_23$SWBM_id)]
+  poly2$irr_2018 = poly_tab_18$SWBM_IRR[match(poly2$Polynmbr, poly_tab_18$SWBM_id)]
+  sum(poly2$irr_2023==poly2$irr_2018)/nrow(poly2)*100
+  # and the irrigation tech all seem to match
+
+}
+
 
 
 

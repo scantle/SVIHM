@@ -2,15 +2,8 @@
 % Please edit documentation in R/writeSWBMInputs.R
 \name{write_SWBM_curtailment_file}
 \alias{write_SWBM_curtailment_file}
-\title{Write file specifying irrigation curtailment regulations/practices}
+\title{Write file specifying Managed Aquifer Recharge (applied irrigation) volumes for each field, for each stress period}
 \usage{
-write_SWBM_curtailment_file(
-  scenario_id = "basecase",
-  output_dir,
-  start_date,
-  end_date
-)
-
 write_SWBM_curtailment_file(
   scenario_id = "basecase",
   output_dir,
@@ -22,12 +15,8 @@ write_SWBM_curtailment_file(
 \item{scenario_name}{Name of  management scenario. Default is historical basecase or "basecase".}
 }
 \value{
-curtail_tab
-
 none, saves MAR_volumes.txt
 }
 \description{
-Write file specifying irrigation curtailment regulations/practices
-
 Write file specifying Managed Aquifer Recharge (applied irrigation) volumes for each field, for each stress period
 }

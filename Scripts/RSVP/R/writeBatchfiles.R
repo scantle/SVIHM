@@ -4,8 +4,10 @@
 
 write_scenario_prep_batchfile <- function(scenario_name='basecase',
                                           output_dir=data_dir['svihm_dir','loc'],
-                                          filename='Prepare_Basecase_Run.bat',
+                                          # filename='Prepare_Basecase_Run.bat',
                                           write_end=TRUE) {
+  filename=paste0('Prepare_',scenario_name,'_Run.bat')
+
   f <- file.path(output_dir, filename)
   write('@setlocal', file = f, append=F)
   write('@echo off', file = f, append=T)
@@ -62,7 +64,9 @@ write_scenario_prep_batchfile <- function(scenario_name='basecase',
 
 #-------------------------------------------------------------------------------------------------#
 
-write_update_prep_batchfile <- function(update_dir, output_dir=data_dir['svihm_dir','loc']) {
+write_update_prep_batchfile <- function(update_dir,
+                                        output_dir=data_dir['svihm_dir','loc'],
+                                        scenario_name = "basecase") {
 
   # Get new filename
   update_name <- basename(update_dir)
@@ -75,7 +79,8 @@ write_update_prep_batchfile <- function(update_dir, output_dir=data_dir['svihm_d
 
   # Write normal batchfile
   write_scenario_prep_batchfile(output_dir=output_dir,
-                                filename = filename,
+                                # filename = filename,
+                                scenario_name = scenario_name,
                                 write_end = F)
 
   # New lines

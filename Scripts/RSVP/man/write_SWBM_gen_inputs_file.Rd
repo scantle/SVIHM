@@ -15,12 +15,14 @@ write_SWBM_gen_inputs_file(
   nAgWells = 167,
   nMuniWells = 0,
   nSubws = 8,
-  inflow_is_vol = TRUE,
+  inflow_is_vol = FALSE,
   nSFR_inflow_segs = 12,
   nrows = 440,
   ncols = 210,
   RD_Mult = 1.4,
   calib_software = "UCODE",
+  using_neighbor_irr_rule = TRUE,
+  scenario_id = "basecase",
   verbose = TRUE
 )
 }
