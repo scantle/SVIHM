@@ -517,7 +517,7 @@ SWBM_Monthly_m3_melt = melt(SWBM_Monthly_m3, id.vars = 'Month')
 
 # Set water year
 pdf(file = file.path(out_dir, "Monthly Budget Plots.pdf"), width = 8.5, height = 11/2)
-for(wy in 1991:2021){ # wy = 1995
+for(wy in 1991:2023){ # wy = 1995
   this_wy = wy
   datelims = as.Date(paste0(c(this_wy-1, this_wy), "-10-01"))
   # Make monthly line plot

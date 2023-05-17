@@ -736,24 +736,20 @@ write_SWBM_MAR_depth_file <- function(scenario_id = "basecase",
 #'
 #'
 write_SWBM_curtailment_file <- function(scenario_id = "basecase",
-                                    output_dir, start_date, end_date) {
+                                    output_dir, start_date, end_date,
+                                    apn_overlap_threshold = 0.5,
+                                    exclude_terrible_and_major_overflow_polygons = F) {
   library(plyr) # for "count" function
   library(sf)
   m2_to_acres = 1/4046.856
 
-  recognized_scenarios = c("basecase","no_curtail_2022")
+  recognized_scenarios = c("basecase",
+                           "curtail_00_pct_all_years", "curtail_50_pct_2022",
+                           "curtail_30_pct_2022", "curtail_10_pct_2022")
+  curtail_scenarios = c("curtail_00_pct_all_years", "curtail_50_pct_2022",
+                        "curtail_30_pct_2022", "curtail_10_pct_2022")
   output_filename = "curtailment_fractions.txt"
   print(paste("Writing SWBM file:", output_filename))
-
-  # function to extract all APN values from LCS data as a vector
-  get_all_apns = function(apn_tab){
-    apn_col_nums = grep(pattern = "APN", x = colnames(apn_tab))
-    apn_vals_raw = as.vector(as.matrix(apn_tab[,apn_col_nums]))
-    take_out_vals = c("", "0", " 0", "0 ", NA)
-    apn_vals = apn_vals_raw[!(apn_vals_raw) %in% take_out_vals]
-    apn_vals = trimws(apn_vals)
-    return(apn_vals)
-  }
 
   # pull reference land cover
   poly_tab = read.table(file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
@@ -763,8 +759,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   if(nrow(poly_tab) != num_unique_fields){
     print("Caution: polygons (fields) info table contains replicated or missing ID numbers")
   }
-
-  # generate a stress-period-by-field table (wide format)
+  # generate a stress-period-by-field table (wide format)  for saving to output
   field_df = swbm_build_field_value_df(nfields = num_unique_fields,
                                        model_start_date = start_date,
                                        model_end_date = end_date)
@@ -774,249 +769,314 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   field_df[,field_column_selector] = 0
 
   ## Basecase curtailment scenario -----------------------------------------
+
+  ## _Process 2022 LCS spatial data -------------------------------------------------------
+
+
   # build historical curtailments if scenario is Basecase or unrecognized
   if(tolower(scenario_id) == "basecase" |
+     tolower(scenario_id) %in% curtail_scenarios |
      !(tolower(scenario_id) %in% recognized_scenarios) ){
     ref_dir = data_dir["ref_data_dir","loc"]
 
-    # read and process 2021 and 2022 curtailment input file
+    ### Process spatial data associated with curtailment applications from 2022
+    # Read LCS land cover files (fields from Landuse and APNs from Plans shapefile)
+    lcs_fields_all = read_sf(dsn = file.path(ref_dir,
+                                             "Landuse_LCS2022 app matching_2023.05.16.shp"))
+
+    # plot(lcs_fields$geometry, col = lcs_fields$LCS_APP)
+
+    # Process LCS fields with data quality notes
+    # overflow50_fields = lcs_fields_all[grepl(pattern = "overflow50",
+    #                                        lcs_fields_all$Comments),]
+    # overflow_major_fields = lcs_fields_all[grepl(pattern = "majoroverflow",
+    #                                          lcs_fields_all$Comments),]
+    # overflow_terrible_fields = lcs_fields_all[grepl(pattern = "terribleoverflow",
+    #                                              lcs_fields_all$Comments),]
+    # sliver_fields = lcs_fields_all[grepl(pattern = "slivercoverage",
+    #                                                 lcs_fields_all$Comments),]
+    # multipol_fields = lcs_fields_all[grepl(pattern = "multipol",
+    #                                      lcs_fields_all$Comments),]
+    # other_overflow_fields = c(overflow50_fields$Poly_nmbr,
+    #                           overflow_major_fields$Poly_nmbr,
+    #                           overflow_terrible_fields$Poly_nmbr,
+    #                           sliver_fields$Poly_nmbr)
+    # overflow_fields = lcs_fields_all[grepl(pattern = "overflow", lcs_fields_all$Comments) &
+    #                                    !(lcs_fields_all$Poly_nmbr %in% other_overflow_fields),]
+    # # calculate acreage for categories
+    # (sum(as.numeric(st_area(overflow50_fields))) * m2_to_acres)
+    # (sum(as.numeric(st_area(overflow_major_fields))) * m2_to_acres)
+    # (sum(as.numeric(st_area(overflow_terrible_fields))) * m2_to_acres)
+    # (sum(as.numeric(st_area(overflow_fields))) * m2_to_acres)
+    # (sum(as.numeric(st_area(sliver_fields))) * m2_to_acres)
+    # (sum(as.numeric(st_area(multipol_fields))) * m2_to_acres)
 
 
-    # PLACEHOLDER: need 2021 curtailment input
+    # plot(overflow50_fields$geometry)
+    # plot(overflow_major_fields$geometry)
+    # plot(overflow_terrible_fields$geometry, col = c("red", "dodgerblue", "green4"), main = "Top 3 unreasonable polygons")
+    # plot(lcs_fields_all$geometry, add=T, fill = NA)
+    # plot(sliver_fields$geometry)
 
+    # png(filename = file.path("top 3 unreasonable polygons.png"))
+    # plot(overflow_terrible_fields$geometry, col = c("red", "dodgerblue", "green4"), main = "Top 3 unreasonable polygons")
+    # plot(lcs_fields_all$geometry, add=T, fill = NA)
+    # dev.off()
 
-    # Read in 2022 curtailment input
-    curtail_frac = read.table(file.path(ref_dir,
-                                        "LCS Tracking_2022 growing season_anonymized for SVIHM.txt"),
-                               header = T, sep = "\t")
-    # Assign application #
-    curtail_frac$app_id = 1:nrow(curtail_frac)
-    # trim whitespace from APN numbers
-    apn_col_nums = grep(pattern = "APN", x = colnames(curtail_frac))
-    apn_mat = as.matrix(curtail_frac[,apn_col_nums])
-    curtail_frac[,apn_col_nums] = trimws(apn_mat)
-    #reassign apn_mat to be the cleaned apn values
-    apn_mat = as.matrix(curtail_frac[,apn_col_nums])
-    # add leading 0 if it is missing
-    lead_char = substr(x = apn_mat, start = 1, stop = 1)
-    lead_0_missing = !(lead_char %in% c("0", NA, ""))
-    apn_mat[lead_0_missing] = paste0("0",apn_mat[lead_0_missing])
-    curtail_frac[,apn_col_nums] = apn_mat
-    # extract all APN values from LCS curtailment data
-    all_apns = get_all_apns(apn_tab = curtail_frac)
+    # plot(lcs_fields_all$geometry)
+    # plot(overflow_terrible_fields$geometry, col = "firebrick", add=t)
+    # plot(overflow_major_fields$geometry, col = "orangered", add=t)
+    # plot(overflow50_fields$geometry, col = "goldenrod", add=t)
 
-    # check to see if there are any repeat parcels
-    apn_freq = count(all_apns); apn_freq[order(apn_freq$freq),]
-    apn_repeats = apn_freq$x[apn_freq$freq>1]
+    # Process APNs
+    # For apps with no visual maps, gotta use the APN data
+    lcs_apns_all = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],
+                                           "LCS 2022 Plans_App matching_2023.05.shp"))
+    lcs_apns_all = st_transform(x = lcs_apns_all, crs = st_crs(lcs_fields_all))
+    lcs_apns = lcs_apns_all[lcs_apns_all$NoMap!=0,]
+    nomap_apps = lcs_apns$NoMap
+    # remove "2045" and add "20" and "45"
+    nomap_apps = nomap_apps[nomap_apps!=2045]
+    nomap_apps = c(nomap_apps, 20, 45)
 
-    # check to see if any parcels in curtailment data are not present in the spatial data
-    # read in parcels spatail data
-    parcels = st_read(dsn = ref_dir, layer = "Scott_HUC8_Parcels_Public" )
-    apns_not_in_spatial = sort(setdiff(all_apns, parcels$APN)) # 27 not
-    #intersect(apns_not_in_spatial, apn_repeats) # 4 repeat parcels not in spatial
-    # ok. 27 parcels in LCS data not present in spatial data.
-    # which LCS reports are they in?
-    lcs_problem_indices = data.frame(apn = apns_not_in_spatial,
-                                     lcs_app_index = NA,
-                                     lcs_app_index2 = NA)
+    # Read in the LCS application info tab
+    lcs_info = read.table(file.path(data_dir["ref_data_dir","loc"], "2022 LCS Field Number Matching_interim.txt"),
+                          header = T, sep = "\t", fill =T, fileEncoding = "latin1")
+    for(i_app in nomap_apps){ #
+      print(paste("Finding field overlap fractions for APNs in LCS app. no.",i_app))
+      lcs_acres = lcs_info$Acres[lcs_info$Application_Number==i_app]
 
-    for(i in 1:length(apns_not_in_spatial)){
-      apn = apns_not_in_spatial[i]
-      # print(which(apn_mat==apn))
-      if(length(which(apn_mat==apn)) == 1){
-        lcs_problem_index = which(apn_mat==apn) %% nrow(apn_mat)
-        lcs_problem_indices$lcs_app_index[i] = lcs_problem_index
+      if(i_app == 20 | i_app == 45){i_app=2045}
+
+      apn_footprint = lcs_apns[lcs_apns$NoMap==i_app,]
+      apn_acres = as.numeric(st_area(apn_footprint))*m2_to_acres
+      # Find fields overlapping with apn footprint
+      lu_poly_overlap = lcs_fields_all[apn_footprint,]
+      lu_poly_overlap$fraction_overlap_apn = NA
+
+      # calculate % of area of each field that overlaps with APN footprint
+      for(j in 1:nrow(lu_poly_overlap)){
+        field_j = lu_poly_overlap[j,]
+        field_apn_intersect = st_intersection(x = field_j, y = apn_footprint)
+        field_area_overlap_fraction = as.numeric(st_area(field_apn_intersect) / st_area(field_j))
+        lu_poly_overlap$fraction_overlap_apn[j] = field_area_overlap_fraction
       }
-      if(length(which(apn_mat==apn)) == 2){
-        lcs_problem_index = which(apn_mat==apn) %% nrow(apn_mat)
-        lcs_problem_indices$lcs_app_index[i] = lcs_problem_index[1]
-        lcs_problem_indices$lcs_app_index2[i] = lcs_problem_index[2]
-      }
+
+      # Assign fields with more than the designated threshold (i.e. 50%) of overlap
+      # with the APN footprint to the relevant LCS app number
+      assign_these_fields = lu_poly_overlap$Poly_nmbr[lu_poly_overlap$fraction_overlap_apn > apn_overlap_threshold]
+      lcs_fields_all$LCS_APP[lcs_fields_all$Poly_nmbr %in% assign_these_fields] = i_app
     }
-    # sort(unique(as.vector(as.matrix(lcs_problem_indices[,c("lcs_app_index","lcs_app_index2")]))))
-    # count(lcs_problem_indices)
 
-    # appears to be problem APNs in 12 out of 44 LCS applications.
+    # restrict lcs_fields to just ones with an app number
+    lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
+    # exclude terrible overflow and major overflow
+
+    if(exclude_terrible_and_major_overflow_polygons == T){
+      lcs_fields_excl_major = lcs_fields[!(grepl(pattern = "majoroverflow",
+                                                 x = lcs_fields$Comments) |
+                                             grepl(pattern = "terribleoverflow",
+                                                   x = lcs_fields$Comments)),]
+      # sum(st_area(lcs_fields_excl_major)) * m2_to_acres
+      # sort(unique(lcs_fields_excl_major$LCS_APP))
+      # not included (no map): 12, 13, 18, 20, 23, 25, 28, 31, 32, 45
+      # not included (major or terrible overflow): 15, 30 (small acreage)
+      lcs_fields = lcs_fields_excl_major
+      # sum(st_area(lcs_fields)) * m2_to_acres  # 18.7k acres relative to 17k reported. Not so bad
+    }
+    # sum(st_area(lcs_fields)) * m2_to_acres  # If include major and terrible overflow, 20.9k acres relative to 17k reported. Not so bad
+
+  }
 
 
-    # What number of curtailment % reduced numbers are missing? 15 for april, 13 for other months
-    # curtail_frac$app_id[is.na(curtail_frac$April_pct_conserved)]
-    # sum(is.na(curtail_frac$May_pct_conserved))
-    # sum(is.na(curtail_frac$June_pct_conserved))
-    # sum(is.na(curtail_frac$July_pct_conserved))
-    # sum(is.na(curtail_frac$Aug_pct_conserved))
+    ## _Process 2022 LCS curtailment data -------------------------------------------------------
 
-    # What number of Acres are missing? none
-    # sum(is.na(curtail_frac$Acres))
-    # which(is.na(curtail_frac$Acres))
-    # setdiff(curtail_frac$app_id[is.na(curtail_frac$Acres)], curtail_frac$app_id[is.na(curtail_frac$April_pct_conserved)])
+    # Build the curtailment file for 2022 and then 2021.
 
-    # Compare spatial area of APNs to reported acreage
-    curtail_frac$acres_to_apn_ratio = NA
-    apps_w_acres = curtail_frac$app_id[!is.na(curtail_frac$Acres)]
-    for(i in apps_w_acres){
-      apn_list_30 = curtail_frac[curtail_frac$app_id==i, apn_col_nums]
-      apn_list = apn_list_30[!(apn_list_30 %in% c("0","",NA))]
-      apn_list_sp = parcels[parcels$APN %in% apn_list,]
-      if(nrow(apn_list_sp)>0){
-        apns = st_union(apn_list_sp)
+  if(tolower(scenario_id) == "basecase" |
+     !(tolower(scenario_id) %in% recognized_scenarios) ){
+    # read and process 2021 and 2022 curtailment input data
 
-        apn_acres = st_area(apns) * m2_to_acres
-        app_area_frac = curtail_frac$Acres[i] / apn_acres
-        curtail_frac$acres_to_apn_ratio[i] = app_area_frac
-      }
+    # Compare spatial area of identified corresponding fields (gis acres) to reported acreage
+    lcs_info$acres_reported_to_gis_ratio = NA
+    for(i_app in lcs_info$Application_Number){
+      acres_reported = lcs_info$Acres[i_app]
+      if(i_app == 20 | i_app == 45){i_app_temp = 2045} else { i_app_temp = i_app}
+      app_fields = lcs_fields[lcs_fields$LCS_APP==i_app_temp,]
+      acres_gis = sum(as.numeric(st_area(app_fields))*m2_to_acres)
+      # print(paste("App",i_app, ":", round(acres_reported), "rep. acres;",round(acres_gis), "GIS acres"))
+      lcs_info$acres_reported_to_gis_ratio[i_app] = acres_reported/acres_gis
+
     }
 
     # Table: month, parcel id, fraction curtailed
 
     # Simplified curtailment rules
     # For missing % conserved volumes, apply the average of all LCS apps for that month
-    conserv_cols = grep(pattern = "conserv", x = colnames(curtail_frac))
+    conserv_cols_index = grepl(pattern = "Spreadsheet_Check", x = colnames(lcs_info)) &
+      grepl(pattern = "conserved", x = colnames(lcs_info)) &
+      ! (grepl(pattern = "Total", x = colnames(lcs_info)))
+    lcs_info[,conserv_cols_index] = as.numeric(as.matrix(lcs_info[,conserv_cols_index]))
     # calculate monthly conservation averages
-    month_avg_cons =apply(X = curtail_frac[,conserv_cols], MARGIN = 2,
+    month_avg_cons =apply(X = lcs_info[,conserv_cols_index], MARGIN = 2,
                           FUN = mean, na.rm=T)
-    # add new columns to the end of curtail_frac for building model input (to avoid altering original columns with NAs)
-    conserv_for_model = paste0(month.abb[4:10], "_pct_cons_model")
+
+    # add new columns to the end of lcs_info table for building model input (to avoid altering original columns with NAs)
+    conserv_preweight = paste0(month.abb[4:10], "_pct_cons_preweight")
     # Assign values to model-input columns
-    curtail_frac[,conserv_for_model] = curtail_frac[,conserv_cols]
+    lcs_info[,conserv_preweight] = lcs_info[,conserv_cols_index]
     # fill NAs in each month with monthly average
-    for(i in 1:length(conserv_cols)){
-      month_cons = curtail_frac[,conserv_for_model[i]]
+    for(i in 1:sum(conserv_cols_index)){
+      month_cons = lcs_info[,conserv_preweight[i]]
       month_cons[is.na(month_cons)] = month_avg_cons[i]
       # reset curtail_frac model input column for that month
-      curtail_frac[,conserv_for_model[i]] = month_cons
+      lcs_info[,conserv_preweight[i]] = month_cons
     }
 
     # OK, now each application has:
     ## A curtailment conservation % for each month.
-    ## A reported acreage-to-APN ratio.
-    ## For each month, we can multiply the conservation % by the acre-to-apn ratio
-    # to get a value to apply to each field within the APN footprint (minus unirrigated fields)
-    # And we can area-overlap weight each of those.
+    ## A reported acreage-reported-to-GIS-acreage ratio.
+    ## For each month, we can multiply the conservation % by the reported-to-GIS ratio
+    # to get a value to apply to each field within the Landuse fields footprint (minus unirrigated fields)
 
-    # spatially relate parcel numbers to fields
-    # Read in fields spatial file for spatial relation
+    # This should be the same spatial data as lcs_fields_all but why not bring in the fresh dataset
     svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
-    svihm_fields = st_transform(svihm_fields, st_crs(parcels))
 
     # Initialize tab to store area weighted info for each field
-    area_wt_tab= data.frame(swbm_id = svihm_fields$Polynmbr)
-    area_wt_tab$curtail_app_id = NA
-    area_wt_tab$frac_area_overlap = 0
-
-    plot_overlaps=F
-    if(plot_overlaps==T){pdf("fields vs parcels in LCS data.pdf", width = 7, height = 7)}
-    for(i in 1:nrow(curtail_frac)){
-      apn_list_30 = curtail_frac[i,apn_col_nums]
-      apn_list = apn_list_30[!(apn_list_30 %in% c("0","",NA))]
-
-      apn_list_sp = parcels[parcels$APN %in% apn_list,]
-      apns = st_union(apn_list_sp)
-      if(sum(parcels$APN %in% apn_list)==0){print(paste("LCS app",i,"had no useable apns"))}
-      if(sum(parcels$APN %in% apn_list)>0){
-
-        fields_intersecting = svihm_fields[apns,] # find overlapping fields
-        # plot overlapping polygons
-        if(plot_overlaps == T){
-          plot(apn_list_sp$geometry, col = "dodgerblue", border = "midnightblue")
-          plot(fields_intersecting$geometry, add=T, col = rgb(.6,.1,.1,.5),border="firebrick")
-          legend(x = "topright", legend = c("APNs", "SVIHM fields", "Overlap"),
-                 fill = c("cornflowerblue", rgb(1,0,0,.5),rgb(.95,.5,.98,.5)),
-                 border = c("midnightblue", "firebrick",NA))
-        }
-
-        # calculate area-weighted
-        for(j in 1:nrow(fields_intersecting)){
-          field = fields_intersecting[j,] # subset field for analysis
-          # locate place to put result in output tab
-          area_wt_tab_index = which(area_wt_tab$swbm_id==field$Polynmbr)
-          # assign LCS application number to area_wt_tab
-          area_wt_tab$curtail_app_id[area_wt_tab_index] = i
-          # calculate spatial intersection of field and APN footprint
-          overlap = st_intersection(x = field, y = apns)
-          # assign the overlap fraction to the field
-          area_wt_tab$frac_area_overlap[area_wt_tab_index] =
-            st_area(overlap)/ st_area(field)
-        }
-
-      }
-
-
-    }
-    if(plot_overlaps==T){dev.off()}
-
-    # merge relevant curtail_frac columns onto field-columns
-    # acres to apn ratio
-    area_wt_tab$acres_to_apn_ratio = NA
-    area_wt_tab$acres_to_apn_ratio = curtail_frac$acres_to_apn_ratio[match(area_wt_tab$curtail_app_id,
-                                                                          curtail_frac$app_id)]
-
-    monthly_conserv = data.frame(matrix(data = NA, nrow = nrow(area_wt_tab),
-                                        ncol = length(conserv_for_model)))
-    colnames(monthly_conserv) = conserv_for_model
+    summary_tab_22 = data.frame(swbm_id = sort(svihm_fields$Polynmbr))
+    # Attach LCS curtailment app number to each field ID
+    summary_tab_22$curtail_app_id = NA
+    summary_tab_22$curtail_app_id = lcs_fields_all$LCS_APP[match( summary_tab_22$swbm_id, lcs_fields_all$Poly_nmbr)]
     # Apr-Oct conserv percentages from gap-filled LCS data
-    area_wt_tab = cbind(area_wt_tab, monthly_conserv)
-    # fill monthly conservation %s
+    monthly_conserv = data.frame(matrix(data = NA, nrow = nrow(summary_tab_22),
+                                        ncol = length(conserv_preweight)))
+    colnames(monthly_conserv) = conserv_preweight
+    summary_tab_22 = cbind(summary_tab_22, monthly_conserv)
+    # fill monthly conservation %s in summary_tab_22
     for(month_abb in month.abb[4:10]){
-      month_cons_colname = paste0(month_abb,"_pct_cons_model")
-      area_wt_tab[,month_cons_colname] = curtail_frac[match(area_wt_tab$curtail_app_id,
-                                                            curtail_frac$app_id), month_cons_colname]
+      month_cons_colname = paste0(month_abb,"_pct_cons_preweight")
+      summary_tab_22[,month_cons_colname] = lcs_info[
+        match(summary_tab_22$curtail_app_id, lcs_info$Application_Number),
+                                                  month_cons_colname]
     }
+
+    # Attach Landuse fields (gis) to reported acreage ratio
+    summary_tab_22$acres_reported_to_gis_ratio = NA
+    summary_tab_22$acres_reported_to_gis_ratio = lcs_info$acres_reported_to_gis_ratio[
+      match(summary_tab_22$curtail_app_id, lcs_info$Application_Number)]
+
     # Initialize columns for Apr-Oct conserv %ages after final weighting
     # final weighting =
     ## reported curtail app % conserved for a given month, times
-    ## the acre-to-apn ratio, times
-    ## the area of each field overlapping the apn-polygon
+    ## the Landuse fields-area-to-reported-acreage-area ratio
 
-    monthly_conserv_2wt = data.frame(matrix(data = NA, nrow = nrow(area_wt_tab),
-                                            ncol = length(conserv_for_model)))
-    colnames(monthly_conserv_2wt) = paste0(conserv_for_model,"_acre_wt")
-    area_wt_tab = cbind(area_wt_tab, monthly_conserv_2wt)
-    area_wt_tab[, colnames(monthly_conserv_2wt)] =
-      area_wt_tab[,conserv_for_model] * 1/100 * #convert to percent
-      area_wt_tab$frac_area_overlap * area_wt_tab$acres_to_apn_ratio
+    conserv_for_model = paste0(month.abb[4:10], "_pct_cons_model")
+    summary_tab_22[,conserv_for_model] = NA
+    summary_tab_22[,conserv_for_model] = summary_tab_22[,conserv_preweight] * summary_tab_22$acres_reported_to_gis_ratio
+
+    ## _2022 non-LCS fields -------------------------------------------------------
+
+    non_lcs_fields = lcs_fields_all[is.na(lcs_fields_all$LCS_APP),]
+    # include fields listed as App #0, I think that's a quality control thing
+    fields_0 = lcs_fields_all[lcs_fields_all$LCS_APP==0 & !is.na(lcs_fields_all$LCS_APP),]
+    non_lcs_fields = rbind(non_lcs_fields, fields_0)
+    non_lcs_field_ids = non_lcs_fields$Poly_nmbr
+    # curtail 100% of all water use on non-lcs fields
+    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model] = 1
 
     # Produce: month-by-field curtailment fraction tables
     # Initialize model input file (curtail_output of this process, input for model run)
     curtail_output = field_df
-    swbm_ids = 1:num_unique_fields
+    swbm_ids = sort(svihm_fields$Polynmbr)
     # match months to stress periods
     conserv_2022_month_dates = as.Date(paste0("2022-",4:10,"-01"))
 
     # Make the final input file. Make it run in fortran.
 
     date_matcher_tab = data.frame(stress_per_date = conserv_2022_month_dates,
-                                  curtail_colname = colnames(monthly_conserv_2wt))
+                                  curtail_colname = conserv_for_model)
     for(i in 1:nrow(date_matcher_tab)){
       sp = date_matcher_tab$stress_per_date[i]
       cname = date_matcher_tab$curtail_colname[i]
       # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
       curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
-        area_wt_tab[match(swbm_ids, area_wt_tab$swbm_id),cname]
+        summary_tab_22[match(swbm_ids, summary_tab_22$swbm_id),cname]
     }
-    # Relace any NAs with 0s
+
+    ## _2021 data -------------------------------------------------------
+    # Make new summary tab including only the fields that did curtailments in Sep-Oct 2021
+    lcs_apps_21 = c(12, 13, 31) # Fawaz, Finley, Menne: 12, 13, 31
+    conserv_for_model_21 = paste0(month.abb[9:10],"_pct_cons_model")
+    summary_tab_21 = summary_tab_22[, c("swbm_id", "curtail_app_id", conserv_for_model_21)]
+    summary_tab_21[,conserv_for_model_21] = 0
+    summary_tab_21[summary_tab_21$curtail_app_id %in% lcs_apps_21, conserv_for_model_21] = 1
+
+    # match months to stress periods
+    conserv_2021_month_dates = as.Date(paste0("2021-",9:10,"-01"))
+    date_matcher_tab_21 = data.frame(stress_per_date = conserv_2021_month_dates,
+                                  curtail_colname = paste0(month.abb[9:10],"_pct_cons_model"))
+
+    for(i in 1:nrow(date_matcher_tab_21)){
+      sp = date_matcher_tab_21$stress_per_date[i]
+      cname = date_matcher_tab_21$curtail_colname[i]
+      # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
+      curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
+        summary_tab_21[match(swbm_ids, summary_tab_21$swbm_id),cname]
+    }
+
+
+    # Final table cleanup
+    # Replace any NAs with 0s
     curtail_output[is.na(curtail_output)] = 0
     field_cols = grep(pattern = "ID", x=colnames(curtail_output))
+
     # PLACEHOLDER UNTIL BETTER DATA QUALITY
     # Identify fields with curtailment fractions > 1. Reset to 1.
-    # sum(curtail_output[,field_cols] > 1) # 95 of them
+    # sum(curtail_output[,field_cols] > 1) # 195 of them
     # sum(curtail_output[,field_cols] < 1 & curtail_output[,field_cols] > 0) #
-
     curtail_output[,field_cols][curtail_output[,field_cols] > 1] = 1
   }
 
   ## Non-basecase scenarios ------------------------------------------------
-  if(tolower(scenario_id=="no_curtail_2022")){
+  if(tolower(scenario_id=="curtail_00_pct_all_years")){
     curtail_output = field_df
-  } # Placeholder :
-  # Replace default with new MAR vol file, and update recognized_scenarios
-  # possible steps: read in fields and potentially adjudicated zone
-  # potentially read in schedule of land use updates
+  }
+  if(tolower(scenario_id=="curtail_50_pct_2022")){
+    curtail_output = field_df
+
+    curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
+      curtail_output$Stress_Period <= as.Date("2022-10-01")
+    lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
+    # plot(lcs_fields$geometry)
+    lcs_fields_colnames = paste0("ID_",lcs_fields$Poly_nmbr)
+    curtail_output[curtail_months,lcs_fields_colnames] = 0.5
+  }
+  if(tolower(scenario_id=="curtail_30_pct_2022")){
+    curtail_output = field_df
+
+    curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
+      curtail_output$Stress_Period <= as.Date("2022-10-01")
+    lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
+    # plot(lcs_fields$geometry)
+    lcs_fields_colnames = paste0("ID_",lcs_fields$Poly_nmbr)
+    curtail_output[curtail_months,lcs_fields_colnames] = 0.3
+  }
+  if(tolower(scenario_id=="curtail_10_pct_2022")){
+    curtail_output = field_df
+    curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
+      curtail_output$Stress_Period <= as.Date("2022-10-01")
+    lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
+    # plot(lcs_fields$geometry)
+    lcs_fields_colnames = paste0("ID_",lcs_fields$Poly_nmbr)
+    curtail_output[curtail_months,lcs_fields_colnames] = 0.1
+  }
+
 
   ## Write curtailment output file -----------------------------------------
   if(!(tolower(scenario_id) %in% recognized_scenarios)){
     print("Warning: specified curtailment scenario not recognized in current codebase. Using basecase curtailment file")
   }
+
   write.table(curtail_output, file = file.path(output_dir, output_filename),
               sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
