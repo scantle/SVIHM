@@ -8,7 +8,9 @@ write_SWBM_curtailment_file(
   scenario_id = "basecase",
   output_dir,
   start_date,
-  end_date
+  end_date,
+  apn_overlap_threshold = 0.5,
+  exclude_terrible_and_major_overflow_polygons = F
 )
 }
 \arguments{

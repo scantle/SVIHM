@@ -30,11 +30,11 @@ create_sp_charts = FALSE  # Many SPs, very slow
 # mf_dir <- file.path(run_dir, 'MODFLOW')
 # Scenario 1
 # s1_dir <- file.path('../../Scenarios/no_curtail_2023.05.08') # RUN THIS
-s1 = "curtail_30_pct_2022"
+s1 = "curtail_00_pct_all_years"
 s1_dir <- file.path('../../Scenarios', s1)
 swbm1_dir = file.path(s1_dir, 'SWBM')
 mf1_dir <- file.path(s1_dir, 'MODFLOW')
-s2 = "curtail_50_pct_2022"
+s2 = "basecase_2023.05.17"
 s2_dir <- file.path('../../Scenarios',s2)
 swbm2_dir = file.path(s2_dir, 'SWBM')
 mf2_dir <- file.path(s2_dir, 'MODFLOW')
@@ -59,6 +59,8 @@ gen_inputs2 = strsplit(readLines(file.path(swbm1_dir, "general_inputs.txt")), " 
 wy_start = as.numeric(gen_inputs1[[1]][2])
 start_date = as.Date(paste0(wy_start-1,"-10-01"))
 n_stress = as.numeric(gen_inputs1[[2]][3])
+
+m3day_to_cfs = 1 * 35.3147 * 1/(60*60*24)
 
 
 #-------------------------------------------------------------------------------------------------#
@@ -125,7 +127,7 @@ streams_sim2 <- list(import_sfr_gauge(file.path(mf2_dir, 'Streamflow_FJ_SVIHM.da
 #-------------------------------------------------------------------------------------------------#
 # Streamflow Comparison Maps ------------------------------------------------------
 
-
+flow_units = "Flow Diff. (cfs)" # "Flow Diff. (1000 m3/day)", "Flow (cfs)", "Flow (1000 m3/day)"
 # Read and process streamflow data - output from modflow
 save_sfr_array = function(scen_dir){
   plots_dir <- file.path(scen_dir, 'Plots')
@@ -176,7 +178,11 @@ reach_array2 = readRDS(file.path(s2_dir,"Plots","sfr_reach_array.RDS"))
 max(as.numeric(as.character(reach_array1[,,8]))) # max flow out
 max(as.numeric(as.character(reach_array2[,,8]))) # max flow out
 # Breaks for flow
-flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6400)*1000
+if(flow_units == "Flow (1000 m3/day)"){flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6500)*1000 }
+if(flow_units == "Flow (cfs)"){flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6500)*1000 * m3day_to_cfs}
+if(flow_units == "Flow Diff. (1000 m3/day)"){flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6500)*1000 }
+if(flow_units == "Flow Diff. (cfs)"){flow_breaks_manual = c(0, 1, 5, 10, 15, 20, 100, 3000)}
+
 #Set color palette
 n_classes = 7
 pal = rev(sequential_hcl(n_classes, palette = "ag_GrnYl"))
@@ -194,7 +200,7 @@ basin = st_transform(basin, crs = st_crs(3310))
 bg_poly = st_buffer(x = basin, dist=1e5)
 
 
-#### Plot streamflow
+#### Plot streamflow differences
 
 #make a pdf appendix of each timestep of dry or wet
 
@@ -205,7 +211,7 @@ sp_tab$month = month(sp_tab$date)
 sp_tab$water_year = year(sp_tab$date); sp_tab$water_year[sp_tab$month>9] = year(sp_tab$date[sp_tab$month>9])+1
 
 #to make a pdf appendix with each stress period plotted:
-pdf_name = paste0("sfr_diff", s1, "minus",s2, ".pdf")
+pdf_name = paste0("sfr_diff", s2, "minus",s1, ".pdf")
 pdf(file.path(plots1_dir, pdf_name), width=8.5, height=11)
 for(i in 1:length(start_rows)){
 
@@ -215,19 +221,34 @@ for(i in 1:length(start_rows)){
   # par(mfrow=c(4,1), mar = c(1,1,1,1))
   # for(i in c(287, 323, 239, 299)){ #Aug of 2014 (wet), 2017 (dry), 2010, and 2015 (avg, spread and conc)
 
-  stress_period_array = data.frame(reach_array[i,,])
-  spa = stress_period_array
-  title_text = paste(month.abb[sp_tab$month[i]],"of water year",sp_tab$water_year[i])
-  #process matrix a bit
-  colnames(spa)=colname_list
-  spa$row_col = paste(spa$ROW, spa$COL, sep="_")
-  spa$FLOW_OUT_OF_STRM_RCH = as.numeric(as.character(spa$FLOW_OUT_OF_STRM_RCH))
-  spa$STREAM_DEPTH = as.numeric(as.character(spa$STREAM_DEPTH))
+  stress_period_array1 = data.frame(reach_array1[i,,])
+  spa1 = stress_period_array1
+  stress_period_array2 = data.frame(reach_array2[i,,])
+  spa2 = stress_period_array2
 
+
+  title_text = c(paste(month.abb[sp_tab$month[i]],"of water year",sp_tab$water_year[i]),
+                 paste(s1, "minus", s2))
+  process_stress_period_array_matrix = function(spa){
+    #process matrix a bit
+    colnames(spa)=colname_list
+    spa$row_col = paste(spa$ROW, spa$COL, sep="_")
+    spa$FLOW_OUT_OF_STRM_RCH = as.numeric(as.character(spa$FLOW_OUT_OF_STRM_RCH))
+    spa$STREAM_DEPTH = as.numeric(as.character(spa$STREAM_DEPTH))
+    return(spa)
+  }
+  spa1 = process_stress_period_array_matrix(spa1)
+  spa2 = process_stress_period_array_matrix(spa2)
+
+  keep_cols = c("LAYER", "ROW", "COL", "STREAM_SEG_NO", "RCH_NO","row_col")
+  diff = spa1[,keep_cols]
+  diff$Flow_out_of_strm_rch_s1 = spa1$FLOW_OUT_OF_STRM_RCH
+  diff$Flow_out_of_strm_rch_s2 = spa2$FLOW_OUT_OF_STRM_RCH
+  diff$flow_out_diff = diff$Flow_out_of_strm_rch_s2 - diff$Flow_out_of_strm_rch_s1
   # par(mfrow = c(1,2)) #if plotting both flow and depth
 
-  # Flowrate
-  seg$flow_out = spa$FLOW_OUT_OF_STRM_RCH[match(seg$row_col, spa$row_col)]
+  # Plot Flowrate Difference
+  seg$flow_out_diff = diff$flow_out_diff[match(seg$row_col, diff$row_col)]
   # seg$color = "dodgerblue"
   #all flow segments with flow out of < 1 cfs are considered dry
   # seg$color[seg$flow_out/2446.6 < 1] = "salmon" #convert m^3/day to cfs for threshold comparison
@@ -244,12 +265,12 @@ for(i in 1:length(start_rows)){
   )
   #plot river reach centroids, colored according to depth
   plot(seg$geometry,pch=19, cex=1, add=T,
-       col=pal[cut(na.omit(seg$flow_out), include.lowest=T,
+       col=pal[cut(na.omit(seg$flow_out_diff), include.lowest=T,
                    breaks = flow_breaks_manual)])
   # generate legend labels and add legend
-  legend_labels = paste(flow_breaks_manual[1:n_classes]/1000,
-                        flow_breaks_manual[2:(n_classes+1)]/1000, sep="-")
-  legend(x="bottomleft", fill = pal, title="Flow (1000 m3/day)",
+  legend_labels = paste(flow_breaks_manual[1:n_classes],
+                        flow_breaks_manual[2:(n_classes+1)], sep="-")
+  legend(x="bottomleft", fill = pal, title=flow_units,
          legend = legend_labels)#, cex=2.5)
 
   #legend in CFS
@@ -286,8 +307,68 @@ dev.off()
 # FJ Flow Comparison ------------------------------------------------------
 
 
-fjsim1 =
-fjsim2
+fjsim1 = streams_sim1[[1]]
+fjsim2 = streams_sim2[[1]]
+
+fjsim_diff = fjsim1[,c("Time", "Date")]
+if(flow_units %in% c("Flow Diff. (cfs)", "Flow (cfs)")){
+  fjsim_diff$flow_s1 = fjsim1$Flow_cfs
+  fjsim_diff$flow_s2 = fjsim2$Flow_cfs
+} else if(flow_units %in% c("Flow Diff. (1000 m3/day)", "Flow (1000 m3/day)")){
+  fjsim_diff$flow_s1 = fjsim1$Flow_m3_day
+  fjsim_diff$flow_s2 = fjsim2$Flow_m3_day
+}
+
+fjsim_diff$flow_diff = fjsim_diff$flow_s2 - fjsim_diff$flow_s1
+plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l")
+
+fjsim_diff$flow_rel_diff = fjsim_diff$flow_diff / fjsim_diff$flow_s2
+
+date_lims = as.Date(c("2021-04-01","2023-02-01"))
+plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l",
+     main = "Fort Jones Flow differences, \n basecase (2021+2022 curtailments) minus 0% curtailments",
+     xlab = "Date", ylab = flow_units,
+      xlim = date_lims)
+axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
+     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
+     las = 2)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
+
+## WHat?? really?? 100 cfs flow difference in fcking June?
+
+flow_units = "Flow (cfs)"
+
+png(filename = file.path(out_dir, "prelim fj comparison, 0 curtail, basecase and obs.png"),
+  # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
+    height = 11/2, width = 8.5, units = "in", res = 300)
+plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n",
+     main = "Fort Jones Flow, Obs. and two scenarios", col = "red",
+     xlab = "Date", ylab = flow_units,
+     xlim = date_lims)
+lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'dodgerblue')
+lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black")
+axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
+     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
+     crt = 45)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
+abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
+axis(side = 2, 10^c(0,1,2,3,4))
+axis(side = 2, at = 1:9 * sort(rep(10^c(0,1,2,3,4),9)), labels = NA)
+legend(x = "topleft", legend = c("FJ Obs.", "Sim. 0% curtail", "Sim. 2022 curtailments"),
+       col = c("black", "red", "dodgerblue"), lwd = 2,  horiz=T, cex = .5)
+
+dev.off()
+# plot(x = fjsim2$Date, y = fjsim2$Flow_cfs, type = "l", log = "y",
+#      main = "Fort Jones Flow, basecase (2022 curtailments)",
+#      xlab = "Date", ylab = flow_units,
+#      xlim = date_lims)
+# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
+#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
+#      crt = 45)
+# abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+
 
 # -------------------------------------------------------------------------#
 # -------------------------------------------------------------------------#
@@ -298,6 +379,323 @@ fjsim2
 # -------------------------------------------------------------------------#
 # -------------------------------------------------------------------------#
 # Groundwater change in storage ------------------------------------------------------
+
+#________________________________________________________________________________________
+# 3b. Import MODFLOW Budget -----------------------------------------------------------------
+#________________________________________________________________________________________
+
+MODFLOW_Budget = function(in_dir, filename, mf_bud_terms, suffix,
+                          start_date = as.Date("1990-10-01"), end_date = as.Date("2018-09-30"),
+                          nstress = 336, start_wy = 1991, end_wy = 2018){
+  library(magrittr)
+  InputText = readLines(file.path(in_dir,filename))  #Read in text file
+  # Extract Convergence Failures
+  conv_fail_lines = grep('FAILED TO MEET',InputText)  #find stress periods where convergence failed
+  conv_fails=InputText[conv_fail_lines]
+  #Find lines where values are printed (including addition budget prints for time steps where solution did not converge)
+  STORAGE_Lines = grep('STORAGE =',InputText)
+  CONSTANT_HEAD_Lines = grep('CONSTANT HEAD =',InputText)
+  WELLS_Lines = grep('WELLS = ',InputText)
+  RECHARGE_Lines = grep('              RECHARGE =  ',InputText)
+  if(length(grep('RECHARGE =   0.00000', InputText[RECHARGE_Lines])) > 0){  #Removes weird entry in LST file. Unclear why this happens.
+    RECHARGE_Lines = RECHARGE_Lines[-grep('RECHARGE =   0.00000', InputText[RECHARGE_Lines])]
+  }
+  ET_SEGMENTS_Lines = grep('ET SEGMENTS = ',InputText)
+  STREAM_LEAKAGE_Lines = grep('STREAM LEAKAGE = ',InputText)
+  DRAINS_Lines = grep('DRAINS = ',InputText)
+  TOTAL_In_Lines = grep('TOTAL IN =',InputText)
+  TOTAL_Out_Lines = grep('TOTAL OUT =',InputText)
+  n_budget_entries = length(STORAGE_Lines)
+  #mf_bud_terms = c('STORAGE', 'CONSTANT_HEAD', 'WELLS', 'RECHARGE', 'ET_SEGMENTS','STREAM_LEAKAGE', 'DRAINS')
+
+  #Extract arrays for cumulative volumes and time step rates for different components of the groundwaterwater budget
+  for (i in 1:length(mf_bud_terms)){
+    if(mf_bud_terms[i]%in%c('CONSTANT_HEAD','ET_SEGMENTS','STREAM_LEAKAGE')){
+      c1 = 4 #column for extracting cumulative data
+      c2 = 8 #column for extracting time step flux data
+    } else {
+      c1 = 3 #column for extracting cumulative data
+      c2 = 6 #column for extracting time step flux data
+    }
+    eval(parse(text = paste0(mf_bud_terms[i],"_cumulative = strsplit(InputText[",mf_bud_terms[i],"_Lines],' ') %>%",
+                             'lapply(function(x){x[!x ==""]}) %>%',
+                             'sapply("[[",',c1,') %>%',
+                             'as.numeric()')))
+    eval(parse(text = paste0(mf_bud_terms[i],"_cumulative_in = ",mf_bud_terms[i],"_cumulative[seq(1,n_budget_entries,2)]")))
+    eval(parse(text = paste0(mf_bud_terms[i],"_cumulative_out = ",mf_bud_terms[i],"_cumulative[seq(2,n_budget_entries,2)]")))
+    eval(parse(text = paste0(mf_bud_terms[i],"_TS_Flux = strsplit(InputText[",mf_bud_terms[i],"_Lines],' ') %>%",
+                             'lapply(function(x){x[!x ==""]}) %>%',
+                             'sapply("[[",',c2,') %>%',
+                             'as.numeric()')))
+    eval(parse(text = paste0(mf_bud_terms[i],"_TS_Flux_in = ",mf_bud_terms[i],"_TS_Flux[seq(1,n_budget_entries,2)]")))
+    eval(parse(text = paste0(mf_bud_terms[i],"_TS_Flux_out = ",mf_bud_terms[i],"_TS_Flux[seq(2,n_budget_entries,2)]")))
+  }
+  TOTAL_cumulative_in = strsplit(InputText[TOTAL_In_Lines],' ') %>%
+    lapply(function(x){x[!x ==""]}) %>%
+    sapply("[[",4) %>%
+    as.numeric()
+  TOTAL_cumulative_out = strsplit(InputText[TOTAL_Out_Lines],' ') %>%
+    lapply(function(x){x[!x ==""]}) %>%
+    sapply("[[",4) %>%
+    as.numeric()
+  TOTAL_TS_Flux_in = strsplit(InputText[TOTAL_In_Lines],' ') %>%
+    lapply(function(x){x[!x ==""]}) %>%
+    sapply("[[",8) %>%
+    as.numeric()
+  TOTAL_TS_Flux_out = strsplit(InputText[TOTAL_Out_Lines],' ') %>%
+    lapply(function(x){x[!x ==""]}) %>%
+    sapply("[[",8) %>%
+    as.numeric()
+  Timestep_SP_Lines = grep('VOLUMETRIC BUDGET FOR ENTIRE MODEL AT END OF TIME STEP',InputText)
+  TS = as.numeric(sapply(lapply(strsplit(InputText[Timestep_SP_Lines],' '),function(x){x[!x ==""]}),"[[",11))  #Extract timestep number for printed budget
+  # SP = as.numeric(sapply(lapply(strsplit(InputText[Timestep_SP_Lines],' '),function(x){x[!x ==""]}),"[[",15))  #Extract stress period number for printed budget
+  # extra_rows = which(duplicated(SP))
+  mf_bud_terms_All = c(mf_bud_terms,'TOTAL')   # All components of the MODFLOW water budget
+  #Remove stress periods that didn't converge if there are any
+  if(length(extra_rows>0)){
+    TS = TS[-extra_rows]
+    SP = SP[-extra_rows]
+    for (i in 1:length(mf_bud_terms_All)){
+      eval(parse(text = paste0(mf_bud_terms_All[i],'_cumulative_in = ',mf_bud_terms_All[i],'_cumulative_in[-extra_rows]')))
+      eval(parse(text = paste0(mf_bud_terms_All[i],'_cumulative_out = ',mf_bud_terms_All[i],'_cumulative_out[-extra_rows]')))
+      eval(parse(text = paste0(mf_bud_terms_All[i],'_TS_Flux_in = ',mf_bud_terms_All[i],'_TS_Flux_in[-extra_rows]')))
+      eval(parse(text = paste0(mf_bud_terms_All[i],'_TS_Flux_out = ',mf_bud_terms_All[i],'_TS_Flux_out[-extra_rows]')))
+    }
+  }
+  for (i in 1:length(mf_bud_terms_All)){
+    #Net Cumulative Fluxes
+    eval(parse(text = paste0(mf_bud_terms_All[i],'_cumulative_net = ',mf_bud_terms_All[i],'_cumulative_in - ',mf_bud_terms_All[i],'_cumulative_out')))
+    # Total Inflow Volume for each Stress Period
+    eval(parse(text = paste0(mf_bud_terms_All[i],'_SP_Vol_in = c(',mf_bud_terms_All[i],'_cumulative_in[1],diff(',mf_bud_terms_All[i],'_cumulative_in))')))
+    # Total Outflow Volume for each Stress Period
+    eval(parse(text = paste0(mf_bud_terms_All[i],'_SP_Vol_out = c(',mf_bud_terms_All[i],'_cumulative_out[1],diff(',mf_bud_terms_All[i],'_cumulative_out))')))
+    # Net Volume for each Stress Period
+    eval(parse(text = paste0(mf_bud_terms_All[i],'_SP_Vol_net = ',mf_bud_terms_All[i],'_SP_Vol_in - ',mf_bud_terms_All[i],'_SP_Vol_out')))
+    # Net flux rate at the end of each time step
+    eval(parse(text = paste0(mf_bud_terms_All[i],'_TS_Flux_net = ',mf_bud_terms_All[i],'_TS_Flux_in - ',mf_bud_terms_All[i],'_TS_Flux_out')))
+  }
+  #Calculate Mass Balance
+  Cumulative_Mass_Balance_percent_diff = ((TOTAL_cumulative_in - TOTAL_cumulative_out)/((TOTAL_cumulative_in + TOTAL_cumulative_out)/2))*100
+  SP_Mass_Balance_percent_diff = ((TOTAL_SP_Vol_in - TOTAL_SP_Vol_out)/((TOTAL_SP_Vol_in + TOTAL_SP_Vol_out)/2))*100
+  TS_Mass_Balance_percent_diff = ((TOTAL_TS_Flux_in - TOTAL_TS_Flux_out)/((TOTAL_TS_Flux_in + TOTAL_TS_Flux_out)/2))*100
+  MODFLOW_Budget_Monthly = data.frame(Month = format(seq(start_date, end_date, by = 'month'),'%b-%Y'),
+                                      Water_Year = rep(seq(start_wy, end_wy),each=12),
+                                      STORAGE_in_m3 = STORAGE_SP_Vol_in,
+                                      STORAGE_out_m3 = STORAGE_SP_Vol_out,
+                                      STORAGE_net_m3 = STORAGE_SP_Vol_net,
+                                      CONSTANT_HEAD_in_m3 = CONSTANT_HEAD_SP_Vol_in,
+                                      CONSTANT_HEAD_out_m3 = CONSTANT_HEAD_SP_Vol_out,
+                                      CONSTANT_HEAD_net_m3 = CONSTANT_HEAD_SP_Vol_net,
+                                      WELLS_in_m3 = WELLS_SP_Vol_in,
+                                      WELLS_out_m3 = WELLS_SP_Vol_out,
+                                      WELLS_net_m3 = WELLS_SP_Vol_net,
+                                      RECHARGE_in_m3 = RECHARGE_SP_Vol_in,
+                                      RECHARGE_out_m3 = RECHARGE_SP_Vol_out,
+                                      RECHARGE_net_m3 = RECHARGE_SP_Vol_net,
+                                      ET_SEGMENTS_in_m3 = ET_SEGMENTS_SP_Vol_in,
+                                      ET_SEGMENTS_out_m3 = ET_SEGMENTS_SP_Vol_out,
+                                      ET_SEGMENTS_net_m3 = ET_SEGMENTS_SP_Vol_net,
+                                      STREAM_LEAKAGE_in_m3 = STREAM_LEAKAGE_SP_Vol_in,
+                                      STREAM_LEAKAGE_out_m3 = STREAM_LEAKAGE_SP_Vol_out,
+                                      STREAM_LEAKAGE_net_m3 = STREAM_LEAKAGE_SP_Vol_net,
+                                      DRAINS_in_m3 = DRAINS_SP_Vol_in,
+                                      DRAINS_out_m3 = DRAINS_SP_Vol_out,
+                                      DRAINS_net_m3 = DRAINS_SP_Vol_net,
+                                      TOTAL_in_m3 = TOTAL_SP_Vol_in,
+                                      TOTAL_out_m3 = TOTAL_SP_Vol_out,
+                                      TOTAL_net_m3 = TOTAL_SP_Vol_net,
+                                      Error_Cumulative_percent = Cumulative_Mass_Balance_percent_diff,
+                                      Error_Stress_Period_percent = SP_Mass_Balance_percent_diff,
+                                      Error_Timestep_percent = TS_Mass_Balance_percent_diff
+  )
+  if (missing(suffix)){
+    Cumulative_Mass_Balance_percent_diff <<- Cumulative_Mass_Balance_percent_diff
+    SP_Mass_Balance_percent_diff <<- SP_Mass_Balance_percent_diff
+    TS_Mass_Balance_percent_diff <<- TS_Mass_Balance_percent_diff
+    return(MODFLOW_Budget_Monthly)
+  } else {
+    eval(parse(text = paste0('Cumulative_Mass_Balance_percent_diff_',suffix,' <<- Cumulative_Mass_Balance_percent_diff')))
+    eval(parse(text = paste0('SP_Mass_Balance_percent_diff_',suffix,' <<- SP_Mass_Balance_percent_diff')))
+    eval(parse(text = paste0('TS_Mass_Balance_percent_diff_',suffix,' <<- TS_Mass_Balance_percent_diff')))
+    return(MODFLOW_Budget_Monthly)
+  }
+}
+
+
+modflow_file_name = file.path(plots1_dir, paste(scenario_id,"MODFLOW_Water_Budget.csv"))
+Print_SWBM_by_landuse = FALSE     # Print 28 year average, dry year (2001), average year (2015), and wet year (2006) SWBM by landuse
+LST_Name = 'SVIHM.lst'
+WB_Components_MODFLOW = c('STORAGE', 'CONSTANT_HEAD', 'WELLS', 'RECHARGE', 'ET_SEGMENTS','STREAM_LEAKAGE', 'DRAINS')
+PRINT_BUDGET = TRUE              # Print monthly water budget to file (TRUE/FALSE)
+
+if(file.exists(modflow_file_name)){
+  MODFLOW_Monthly_m3 = read.csv(file = modflow_file_name, header = T)
+
+} else if(!file.exists(modflow_file_name)){
+  MODFLOW_Monthly_m3 = MODFLOW_Budget(in_dir = mf1_dir,
+                                      filename = LST_Name,
+                                      mf_bud_terms = WB_Components_MODFLOW,
+                                      start_date = start_date, end_date = end_date,
+                                      nstress = n_stress,
+                                      start_wy = year(start_date)+1,
+                                      end_wy = year(end_date))
+
+  MODFLOW_Monthly_m3$Year = substr(MODFLOW_Monthly_m3$Month, 5,9)
+  MODFLOW_Monthly_m3$Month = strtrim(MODFLOW_Monthly_m3$Month,3)
+
+  # Make tables for each month of the record
+  # month_abbv = format(seq(as.Date('1990/10/1'), as.Date('1991/9/30'), by = 'month'),'%b')
+  # for (i in 1:12){
+  #   eval(parse(text = paste0("MODFLOW_",month_abbv[i],"_m3 = subset(MODFLOW_Monthly_m3, select = paste0(WB_Components_MODFLOW,'_net_m3'), Month == '",month_abbv[i],"')")))
+  #   eval(parse(text = paste0('MODFLOW_',month_abbv[i],'_m3$Water_Year = seq(1991,end_wy)')))
+  # }
+
+  if (PRINT_BUDGET==TRUE){
+    write.csv(MODFLOW_Monthly_m3, file = modflow_file_name, row.names = F, quote = F)
+  }
+
+}
+
+
+# Monthly dataframes for specific purposes
+MODFLOW_Monthly_m3_for_annual = data.frame(Water_Year = MODFLOW_Monthly_m3$Water_Year,
+                                           Recharge = MODFLOW_Monthly_m3$RECHARGE_net_m3,
+                                           ET = MODFLOW_Monthly_m3$ET_SEGMENTS_net_m3,
+                                           Storage = MODFLOW_Monthly_m3$STORAGE_net_m3,
+                                           Drains = MODFLOW_Monthly_m3$DRAINS_net_m3,
+                                           Stream_Leakage = MODFLOW_Monthly_m3$STREAM_LEAKAGE_net_m3,
+                                           Wells = -1*(MODFLOW_Monthly_m3$WELLS_out_m3),              #negative sign since flux is out
+                                           Canal_Seepage_MFR = MODFLOW_Monthly_m3$WELLS_in_m3)
+
+#monthly dataframe for GSP plots
+MODFLOW_Monthly_m3 = data.frame(Month = MODFLOW_Monthly_m3$Month,
+                                Water_Year = MODFLOW_Monthly_m3$Water_Year,
+                                Recharge = MODFLOW_Monthly_m3$RECHARGE_net_m3,
+                                ET = MODFLOW_Monthly_m3$ET_SEGMENTS_net_m3,
+                                Storage = MODFLOW_Monthly_m3$STORAGE_net_m3,
+                                Drains = MODFLOW_Monthly_m3$DRAINS_net_m3,
+                                Stream_Leakage = MODFLOW_Monthly_m3$STREAM_LEAKAGE_net_m3,
+                                Wells = -1*(MODFLOW_Monthly_m3$WELLS_out_m3),              #negative sign since flux is out
+                                Canal_Seepage_MFR = MODFLOW_Monthly_m3$WELLS_in_m3)
+#Make annual budget
+# MODFLOW_Annual_m3 = subset(MODFLOW_Monthly_m3, select = paste0(WB_Components_MODFLOW,'_net_m3'))
+# MODFLOW_Annual_m3_raw$Water_Year = rep(seq(1991,end_wy),each = 12)
+MODFLOW_Annual_m3 = aggregate(.~Water_Year, MODFLOW_Monthly_m3_for_annual, FUN = sum)
+
+MODFLOW_Annual_m3_melt = melt(MODFLOW_Annual_m3, id.vars = 'Water_Year')
+MODFLOW_Annual_m3_melt$variable = factor(MODFLOW_Annual_m3_melt$variable, levels = c('Recharge','ET','Storage','Drains','Stream_Leakage','Wells', 'Canal_Seepage_MFR'))
+MODFLOW_Annual_m3_melt = MODFLOW_Annual_m3_melt[order(MODFLOW_Annual_m3_melt$variable),]
+
+
+
+water_budget_monthly = function(MODFLOW_Monthly_m3, output_format = "vector"){
+
+  m3_to_TAF = 35.31 / 43560 / 1000 #ft3/m3 and feet per acre
+  MODFLOW_Monthly_m3_melt = melt(MODFLOW_Monthly_m3, id.vars = c('Water_Year', "Month"))
+  MODFLOW_Monthly_m3_melt$variable = factor(MODFLOW_Monthly_m3_melt$variable, levels = c('Recharge','ET','Storage','Drains','Stream_Leakage','Wells', 'Canal_Seepage_MFR'))
+  MODFLOW_Monthly_m3_melt = MODFLOW_Monthly_m3_melt[order(MODFLOW_Monthly_m3_melt$variable),]
+  MODFLOW_Monthly_m3_melt$Month = factor(x = MODFLOW_Monthly_m3_melt$Month, levels = month.abb[c(10:12, 1:9)])
+
+  wys = c(2014, 2017, 2010, 2015)
+
+  aq_wys = MODFLOW_Monthly_m3_melt[MODFLOW_Monthly_m3_melt$Water_Year %in% wys,]
+  aq_wys$Water_Year = factor(x = aq_wys$Water_Year)
+
+  pump_wys = aq_wys[aq_wys$variable == "Wells",]
+  rch_wys = aq_wys[aq_wys$variable == "Recharge",]
+  leak_wys = aq_wys[aq_wys$variable == "Stream_Leakage",]
+  stor_wys = aq_wys[aq_wys$variable=="Storage",]
+
+  pump=ggplot(data = pump_wys, aes(x = Month, y= -value * m3_to_TAF, group = Water_Year))+ #negative to make pumping positive for plotting
+    labs(x = "none",  y = "Volume (TAF)", #y = expression(paste("Volume (km"^"3","/month)")),
+         title="Well Pumping", color = "Water Year")+
+    ylim(0,30)+
+    geom_line(aes(colour = Water_Year), size = 1.5)+
+    scale_colour_manual(labels = c("2010 (Avg. Total Rainfall)","2014 (Dry Year)","2015 (Avg. Total Rainfall)","2017 (Wet Year)"),
+                        values = c("2014"="orangered", "2017"="deepskyblue3",
+                                   "2010"="darkgoldenrod1", "2015"="darkgoldenrod3"))+
+    theme_bw()+ theme(#legend.position="none",
+      axis.title.x=element_blank(), axis.text = element_text(size=12),
+      axis.title=element_text(size=14), plot.title = element_text(size=14))
+
+  rch=ggplot(data = rch_wys, aes(x = Month, y= value * m3_to_TAF, group = Water_Year))+
+    labs(x = "none",  y = "Volume (TAF)", #y = expression(paste("Volume (km"^"3","/month)")),
+         title="Recharge Through Soil Zone")+
+    ylim(0,30)+
+    geom_line(aes(colour = Water_Year), size = 1.5)+
+    scale_colour_manual(values = c("2014"="orangered", "2017"="deepskyblue3",
+                                   "2010"="darkgoldenrod1", "2015"="darkgoldenrod3"))+
+    theme_bw()+ theme(legend.position="none", axis.title.x=element_blank(),
+                      axis.text = element_text(size=12),
+                      axis.title=element_text(size=14), plot.title = element_text(size=14))
+
+  leak=ggplot(data = leak_wys, aes(x = Month, y= -value * m3_to_TAF, group = Water_Year))+ #negative to make leaking negative
+    labs(x = "none",  y = "Volume (TAF)", #y = expression(paste("Volume (km"^"3","/month)")),
+         title="Stream Leakage")+
+    ylim(-15,15)+
+    geom_line(aes(colour = Water_Year), size=1.5)+
+    geom_hline(yintercept=0, linetype="solid", color="black")+
+    geom_text(label="Net recharge to aquifer",x=9, y=8, size=4)+
+    geom_text(label="Net discharge to stream",x=9, y=-8, size=4)+
+    scale_colour_manual(values = c("2014"="orangered", "2017"="deepskyblue3",
+                                   "2010"="darkgoldenrod1", "2015"="darkgoldenrod3"))+
+    theme_bw()+ theme(legend.position="none", axis.title.x=element_blank(),
+                      axis.text = element_text(size=12),
+                      axis.title=element_text(size=14), plot.title = element_text(size=14))
+
+
+  stor = ggplot(data = stor_wys, aes(x = Month, y= -value* m3_to_TAF, group = Water_Year))+ # negative so neg vals mean dropping WLs
+    labs(x = "none", #y = expression(paste("Volume (km"^"3","/month)")),
+         y = "Volume (TAF)", title="Change in Aquifer Storage")+
+    ylim(-10,20)+
+    geom_line(aes(colour = Water_Year), size=1.5)+
+    geom_hline(yintercept=0, linetype="solid", color="black")+
+    geom_text(label="Rising water levels",x=10, y=9, size=4)+
+    geom_text(label="Declining water levels",x=5, y=-9, size = 4)+
+    scale_colour_manual(values = c("2014"="orangered", "2017"="deepskyblue3",
+                                   "2010"="darkgoldenrod1", "2015"="darkgoldenrod3"))+
+    theme_bw()+
+    theme(legend.position="none", axis.text = element_text(size=12), axis.title.x=element_blank(),
+          axis.title=element_text(size=14), plot.title = element_text(size=14))
+
+  # from Public Meetings script
+  # fig_width = 7
+  # fig_height = 5
+  # png(file.path(fig_dir,"pump.png"), width = fig_width, height = fig_height, units = "in", res = 300)
+  # pump
+  # dev.off()
+  # png(file.path(fig_dir,"rch.png"), width = fig_width, height = fig_height, units = "in", res = 300)
+  # rch
+  # dev.off()
+  # png(file.path(fig_dir,"leak.png"), width = fig_width, height = fig_height, units = "in", res = 300)
+  # leak
+  # dev.off()
+  # png(file.path(fig_dir,"stor.png"), width = fig_width, height = fig_height, units = "in", res = 300)
+  # stor
+  # dev.off()
+
+
+  if(output_format == "png"){png(file.path(agu_figure_dir,"components2.png"), height = 20, width = 7,
+                                 units = "in", res = 300)}
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(4,1)))
+  vplayout <- function(x, y) viewport(layout.pos.row = x, layout.pos.col = y)
+  print(pump + theme(legend.justification=c(0,1),
+                     legend.position = c(.05,.95),
+                     # legend.background = element_blank(),
+                     legend.key = element_blank()),
+        vp = vplayout(1,1))
+  print(rch, vp = vplayout(2,1))
+  print(stor, vp=vplayout(3,1))
+  print(leak, vp = vplayout(4,1))
+  if(output_format == "png"){dev.off()}
+}
+
+# png(filename = "water_budget_monthly_tester.png", width = 7, height = 9, units = "in", res = 300)
+# scenario_directory = file.path("C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios", "basecase")
+# data_tables = import_water_budget_files(scenario_dir = scenario_directory)
+# water_budget_monthly(MODFLOW_Monthly_m3 = data_tables$monthly$mf)
+# dev.off()
 
 
 

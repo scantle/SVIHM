@@ -13,7 +13,14 @@ end_year   <- as.numeric(format(Sys.Date(), "%Y"))  # Assumes current year
 update_dir <- latest_dir(data_dir['update_dir','loc'])
 
 # Scenario selection
-current_scenario = "curtail_50_pct_2022" # default is "basecase". Affects a variety of input files.
+current_scenario = "curtail_00_pct_all_years" # default is "basecase". Affects a variety of input files.
+
+# Current coded-up scenario names:
+# "basecase"
+# "curtail_00_pct_all_years"
+# "curtail_10_pct_2022"
+# "curtail_30_pct_2022"
+# "curtail_50_pct_2022"
 
 # ------------------------------------------------------------------------------------------------#
 
