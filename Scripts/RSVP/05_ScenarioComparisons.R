@@ -38,6 +38,21 @@ s2 = "basecase_2023.05.17"
 s2_dir <- file.path('../../Scenarios',s2)
 swbm2_dir = file.path(s2_dir, 'SWBM')
 mf2_dir <- file.path(s2_dir, 'MODFLOW')
+# more scenarios?
+s3 = "curtail_50_pct_2022"
+s3_dir <- file.path('../../Scenarios',s3)
+swbm3_dir = file.path(s3_dir, 'SWBM')
+mf3_dir <- file.path(s3_dir, 'MODFLOW')
+s4 = "curtail_30_pct_2022"
+s4_dir <- file.path('../../Scenarios',s4)
+swbm4_dir = file.path(s4_dir, 'SWBM')
+mf4_dir <- file.path(s4_dir, 'MODFLOW')
+
+
+s5 = "basecase_2018"
+s5_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+swbm5_dir = s5_dir
+mf5_dir = s5_dir
 
 # TODO automate finding latest version
 update_dir <- latest_dir(data_dir['update_dir','loc'])  #file.path('../../SVIHM_Input_Files/Updates/2022-04-13/')
@@ -46,16 +61,19 @@ plot_data_dir = file.path('../../SVIHM_Input_Files/reference_data_for_plots/')
 
 plots1_dir <- file.path(s1_dir, 'Plots')
 plots2_dir <- file.path(s2_dir, 'Plots')
+#plots3_dir <- file.path(s3_dir, "Plots")
+#plots4_dir <- file.path(s4_dir, "Plots")
 out_dir = file.path('../../Scenarios', "_Comparison_Plots")
 
 
 if (!dir.exists(plots1_dir)) {dir.create(plots1_dir, recursive = T)}
 if (!dir.exists(plots2_dir)) {dir.create(plots2_dir, recursive = T)}
+# if (!dir.exists(plots3_dir)) {dir.create(plots2_dir, recursive = T)}
 
 # info from general_inputs.txt
 gen_inputs1 = strsplit(readLines(file.path(swbm1_dir, "general_inputs.txt")), "  ")
-gen_inputs2 = strsplit(readLines(file.path(swbm1_dir, "general_inputs.txt")), "  ")
-#assumes same number of stress periods in 1 and 2
+
+#assumes same number of stress periods in scenarios 1 and 2
 wy_start = as.numeric(gen_inputs1[[1]][2])
 start_date = as.Date(paste0(wy_start-1,"-10-01"))
 n_stress = as.numeric(gen_inputs1[[2]][3])
@@ -120,7 +138,16 @@ streams_sim1 <- list(import_sfr_gauge(file.path(mf1_dir, 'Streamflow_FJ_SVIHM.da
 streams_sim2 <- list(import_sfr_gauge(file.path(mf2_dir, 'Streamflow_FJ_SVIHM.dat'), origin_date = origin_date),
                      import_sfr_gauge(file.path(mf2_dir, 'Streamflow_AS_SVIHM.dat'), origin_date = origin_date),
                      import_sfr_gauge(file.path(mf2_dir, 'Streamflow_BY_SVIHM.dat'), origin_date = origin_date))
+streams_sim3 <- list(import_sfr_gauge(file.path(mf3_dir, 'Streamflow_FJ_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf3_dir, 'Streamflow_AS_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf3_dir, 'Streamflow_BY_SVIHM.dat'), origin_date = origin_date))
+streams_sim4 <- list(import_sfr_gauge(file.path(mf4_dir, 'Streamflow_FJ_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf4_dir, 'Streamflow_AS_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf4_dir, 'Streamflow_BY_SVIHM.dat'), origin_date = origin_date))
 
+streams_sim5 <- list(import_sfr_gauge(file.path(mf5_dir, 'Streamflow_FJ_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf5_dir, 'Streamflow_AS_SVIHM.dat'), origin_date = origin_date),
+                     import_sfr_gauge(file.path(mf5_dir, 'Streamflow_BY_SVIHM.dat'), origin_date = origin_date))
 
 #-------------------------------------------------------------------------------------------------#
 
@@ -168,15 +195,26 @@ if(!file.exists(file.path(plots1_dir, "sfr_reach_array.RDS"))){
 if(!file.exists(file.path(plots2_dir, "sfr_reach_array.RDS"))){
   save_sfr_array(scen_dir = s2_dir)
 }
+if(!file.exists(file.path(plots3_dir, "sfr_reach_array.RDS"))){
+  save_sfr_array(scen_dir = s3_dir)
+}
+if(!file.exists(file.path(plots4_dir, "sfr_reach_array.RDS"))){
+  save_sfr_array(scen_dir = s4_dir)
+}
 
 reach_array1 = readRDS(file.path(s1_dir,"Plots","sfr_reach_array.RDS"))
 reach_array2 = readRDS(file.path(s2_dir,"Plots","sfr_reach_array.RDS"))
+reach_array3 = readRDS(file.path(s3_dir,"Plots","sfr_reach_array.RDS"))
+reach_array4 = readRDS(file.path(s4_dir,"Plots","sfr_reach_array.RDS"))
+
+
 
 # Set up for SFR stream network maps
 
 # Check flow max
 max(as.numeric(as.character(reach_array1[,,8]))) # max flow out
 max(as.numeric(as.character(reach_array2[,,8]))) # max flow out
+max(as.numeric(as.character(reach_array3[,,8]))) # max flow out
 # Breaks for flow
 if(flow_units == "Flow (1000 m3/day)"){flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6500)*1000 }
 if(flow_units == "Flow (cfs)"){flow_breaks_manual = c(0, 2.5, 20, 50, 100, 300, 700, 6500)*1000 * m3day_to_cfs}
@@ -309,55 +347,68 @@ dev.off()
 
 fjsim1 = streams_sim1[[1]]
 fjsim2 = streams_sim2[[1]]
+fjsim3 = streams_sim3[[1]]
+fjsim4 = streams_sim4[[1]]
+fjsim5 = streams_sim5[[1]]
 
-fjsim_diff = fjsim1[,c("Time", "Date")]
-if(flow_units %in% c("Flow Diff. (cfs)", "Flow (cfs)")){
-  fjsim_diff$flow_s1 = fjsim1$Flow_cfs
-  fjsim_diff$flow_s2 = fjsim2$Flow_cfs
-} else if(flow_units %in% c("Flow Diff. (1000 m3/day)", "Flow (1000 m3/day)")){
-  fjsim_diff$flow_s1 = fjsim1$Flow_m3_day
-  fjsim_diff$flow_s2 = fjsim2$Flow_m3_day
-}
-
-fjsim_diff$flow_diff = fjsim_diff$flow_s2 - fjsim_diff$flow_s1
-plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l")
-
-fjsim_diff$flow_rel_diff = fjsim_diff$flow_diff / fjsim_diff$flow_s2
-
-date_lims = as.Date(c("2021-04-01","2023-02-01"))
-plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l",
-     main = "Fort Jones Flow differences, \n basecase (2021+2022 curtailments) minus 0% curtailments",
-     xlab = "Date", ylab = flow_units,
-      xlim = date_lims)
-axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
-     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
-     las = 2)
-abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
-abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
+# fjsim_diff = fjsim1[,c("Time", "Date")]
+# if(flow_units %in% c("Flow Diff. (cfs)", "Flow (cfs)")){
+#   fjsim_diff$flow_s1 = fjsim1$Flow_cfs
+#   fjsim_diff$flow_s2 = fjsim2$Flow_cfs
+# } else if(flow_units %in% c("Flow Diff. (1000 m3/day)", "Flow (1000 m3/day)")){
+#   fjsim_diff$flow_s1 = fjsim1$Flow_m3_day
+#   fjsim_diff$flow_s2 = fjsim2$Flow_m3_day
+# }
+#
+# fjsim_diff$flow_diff = fjsim_diff$flow_s2 - fjsim_diff$flow_s1
+# plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l")
+#
+# fjsim_diff$flow_rel_diff = fjsim_diff$flow_diff / fjsim_diff$flow_s2
+#
+# date_lims = as.Date(c("2021-04-01","2023-02-01"))
+# plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l",
+#      main = "Fort Jones Flow differences, \n basecase (2021+2022 curtailments) minus 0% curtailments",
+#      xlab = "Date", ylab = flow_units,
+#       xlim = date_lims)
+# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
+#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
+#      las = 2)
+# abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
 
 ## WHat?? really?? 100 cfs flow difference in fcking June?
 
 flow_units = "Flow (cfs)"
+date_lims = as.Date(c("2015-01-01","2015-12-31"))
 
-png(filename = file.path(out_dir, "prelim fj comparison, 0 curtail, basecase and obs.png"),
+# png(filename = file.path(out_dir, "prelim fj comparison, 0 curtail, basecase and obs.png"),
   # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
-    height = 11/2, width = 8.5, units = "in", res = 300)
-plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n",
+    # height = 11/2, width = 8.5, units = "in", res = 300)
+plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n", lwd=2,
      main = "Fort Jones Flow, Obs. and two scenarios", col = "red",
      xlab = "Date", ylab = flow_units,
      xlim = date_lims)
-lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'dodgerblue')
-lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black")
-axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
-     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
-     crt = 45)
+lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'dodgerblue', lwd = 2)
+lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black", lwd = 2)
+lines(x = fjsim3$Date, y = fjsim3$Flow_cfs, col = "green4", lwd = 2)
+lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
+
+lines(x = fjsim5$Date, y = fjsim5$Flow_cfs, col = "darkgray", lwd = 2, lty = 2)
+# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
+#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
+#      crt = 45)
 abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
 # abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
 abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
 axis(side = 2, 10^c(0,1,2,3,4))
 axis(side = 2, at = 1:9 * sort(rep(10^c(0,1,2,3,4),9)), labels = NA)
-legend(x = "topleft", legend = c("FJ Obs.", "Sim. 0% curtail", "Sim. 2022 curtailments"),
-       col = c("black", "red", "dodgerblue"), lwd = 2,  horiz=T, cex = .5)
+
+legend_tab = data.frame(descrip = c("FJ Obs.", "Sim. 0% curtail",
+                                    "Sim. 2022 curtail", "Sim. 50% curtail", "Sim. 30% curtail", "Basecase 2018"),
+                        color = c("black", "red", "dodgerblue","green4", "goldenrod", "darkgray"))
+
+legend(x = "topleft", legend = legend_tab$descrip,
+       col = legend_tab$color, lwd = 2,  cex = .7)#, horiz=T)
 
 dev.off()
 # plot(x = fjsim2$Date, y = fjsim2$Flow_cfs, type = "l", log = "y",

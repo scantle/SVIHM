@@ -635,10 +635,11 @@ write_SWBM_landcover_file <- function(scenario_id = "basecase",
 
     # n_rotating = sum(poly_tab$SWBM_LU==1) # how many fields are using alfalfa-grain rotation? Assume all alfalfa
     # n_grain = n_rotating / 8 # 1 out of every 8 fields is grain at any given time. 8-yr schedule
-    field_rotator = 0 # initialize the eenie-meenie-miney-mo counter
+    field_rotator = 1 # initialize the eenie-meenie-miney-mo counter
     for(i in 1:num_unique_fields){
       if(poly_tab$SWBM_LU[poly_tab$SWBM_id==i]==1){ # If it's designated as alfalfa-type landuse
         first_grain_year = field_rotator %% 8 + 1 # designate first year of grain rotation
+        # print(first_grain_year)
         grain_years = seq(from = first_grain_year, by = 8, to = n_stress)
         grain_sp_indices = which(grain_months$grain_year %in% grain_years)
         # print(grain_sp_indices)
@@ -739,9 +740,11 @@ write_SWBM_MAR_depth_file <- function(scenario_id = "basecase",
 #'
 #'
 write_SWBM_curtailment_file <- function(scenario_id = "basecase",
-                                    output_dir, start_date, end_date,
-                                    apn_overlap_threshold = 0.5,
-                                    exclude_terrible_and_major_overflow_polygons = F) {
+                                        output_dir, start_date, end_date,
+                                        apn_overlap_threshold = 0.5,
+                                        exclude_terrible_and_major_overflow_polygons = F,
+                                        curtail_100_pct_non_lcs_fields = T # for 2022 and 2023 curtail scenarios
+                                        ) {
   library(plyr) # for "count" function
   library(sf)
   m2_to_acres = 1/4046.856
@@ -749,9 +752,11 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   recognized_scenarios = c("basecase",
                            "curtail_00_pct_all_years",
                            "curtail_50_pct_2022",
-                           "curtail_30_pct_2022", "curtail_10_pct_2022")
+                           "curtail_30_pct_2022", "curtail_10_pct_2022",
+                           "basecase_2023.06.04_curtail_30_pct_2023")
   curtail_scenarios = c("curtail_00_pct_all_years", "curtail_50_pct_2022",
                         "curtail_30_pct_2022", "curtail_10_pct_2022")
+  curtail_2023_scenarios = c("basecase_2023.06.04_curtail_30_pct_2023") # 2023 projected curtailment scenarios, June 4th 2023
   output_filename = "curtailment_fractions.txt"
   print(paste("Writing SWBM file:", output_filename))
 
@@ -779,6 +784,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   # Will need LCS spatial data if the scenario is basecase, in the curtailment scenarios, or just not in any recognized scenarios (in which case default to basecase)
   if(tolower(scenario_id) == "basecase" |
      tolower(scenario_id) %in% curtail_scenarios |
+     tolower(scenario_id) %in% curtail_2023_scenarios |
      !(tolower(scenario_id) %in% recognized_scenarios) ){
     ref_dir = data_dir["ref_data_dir","loc"]
 
@@ -871,10 +877,10 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
       lcs_fields_all$LCS_APP[lcs_fields_all$Poly_nmbr %in% assign_these_fields] = i_app
     }
 
+    # Now that we've assigned all the fields with their LCS app,
     # restrict lcs_fields to just ones with an app number
     lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
     # exclude terrible overflow and major overflow
-
     if(exclude_terrible_and_major_overflow_polygons == T){
       lcs_fields_excl_major = lcs_fields[!(grepl(pattern = "majoroverflow",
                                                  x = lcs_fields$Comments) |
@@ -892,12 +898,13 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
   }
 
 
-    ## _Process 2022 LCS curtailment data -------------------------------------------------------
+  ## _Process 2022 LCS curtailment data -------------------------------------------------------
 
-    # Build the curtailment file for 2022 and then 2021.
+  # Build the curtailment file for 2022 and then 2021.
   # build historical curtailments if scenario is Basecase or unrecognized
 
   if(tolower(scenario_id) == "basecase" |
+     tolower(scenario_id) %in% curtail_2023_scenarios |
      !(tolower(scenario_id) %in% recognized_scenarios) ){
     # read and process 2021 and 2022 curtailment input data
 
@@ -937,6 +944,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
       lcs_info[,conserv_preweight[i]] = month_cons
     }
 
+
     # OK, now each application has:
     ## A curtailment conservation % for each month.
     ## A reported acreage-reported-to-GIS-acreage ratio.
@@ -961,7 +969,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
       month_cons_colname = paste0(month_abb,"_pct_cons_preweight")
       summary_tab_22[,month_cons_colname] = lcs_info[
         match(summary_tab_22$curtail_app_id, lcs_info$Application_Number),
-                                                  month_cons_colname]
+        month_cons_colname]
     }
 
     # Attach Landuse fields (gis) to reported acreage ratio
@@ -1018,7 +1026,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     # match months to stress periods
     conserv_2021_month_dates = as.Date(paste0("2021-",9:10,"-01"))
     date_matcher_tab_21 = data.frame(stress_per_date = conserv_2021_month_dates,
-                                  curtail_colname = paste0(month.abb[9:10],"_pct_cons_model"))
+                                     curtail_colname = paste0(month.abb[9:10],"_pct_cons_model"))
 
     for(i in 1:nrow(date_matcher_tab_21)){
       sp = date_matcher_tab_21$stress_per_date[i]
@@ -1041,12 +1049,12 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     curtail_output[,field_cols][curtail_output[,field_cols] > 1] = 1
   }
 
-  ## Non-basecase scenarios ------------------------------------------------
-  if(tolower(scenario_id=="curtail_00_pct_all_years")){
+  ## Non-basecase scenarios
+  if(tolower(scenario_id)=="curtail_00_pct_all_years"){
     curtail_output = field_df
   }
 
-  if(tolower(scenario_id=="curtail_50_pct_2022")){
+  if(tolower(scenario_id)=="curtail_50_pct_2022"){
     curtail_output = field_df
 
     curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
@@ -1066,7 +1074,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
     curtail_output[curtail_months,non_lcs_fields_colnames] = 1
   }
-  if(tolower(scenario_id=="curtail_30_pct_2022")){
+  if(tolower(scenario_id)=="curtail_30_pct_2022"){
     curtail_output = field_df
 
     curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
@@ -1086,7 +1094,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
     curtail_output[curtail_months,non_lcs_fields_colnames] = 1
   }
-  if(tolower(scenario_id=="curtail_10_pct_2022")){
+  if(tolower(scenario_id)=="curtail_10_pct_2022"){
     curtail_output = field_df
     curtail_months = curtail_output$Stress_Period >= as.Date("2022-04-01") &
       curtail_output$Stress_Period <= as.Date("2022-10-01")
@@ -1104,6 +1112,31 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     # curtail 100% of all water use on non-lcs fields
     non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
     curtail_output[curtail_months,non_lcs_fields_colnames] = 1
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.04_curtail_30_pct_2023"){
+    curtail_frac_2023 = 0.3
+
+    curtail_output = field_df
+
+    curtail_months = curtail_output$Stress_Period >= as.Date("2023-06-01") &
+      curtail_output$Stress_Period <= as.Date("2023-10-01")
+    lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
+    # plot(lcs_fields$geometry)
+    lcs_fields_colnames = paste0("ID_",lcs_fields$Poly_nmbr)
+    curtail_output[curtail_months,lcs_fields_colnames] = curtail_frac_2023
+
+    if(curtail_100_pct_non_lcs_fields == TRUE){
+      # Assign 100% curtailment to non-LCS fields
+      non_lcs_fields = lcs_fields_all[is.na(lcs_fields_all$LCS_APP),]
+      # include fields listed as App #0, I think that's a quality control thing
+      fields_0 = lcs_fields_all[lcs_fields_all$LCS_APP==0 & !is.na(lcs_fields_all$LCS_APP),]
+      non_lcs_fields = rbind(non_lcs_fields, fields_0)
+      non_lcs_field_ids = non_lcs_fields$Poly_nmbr
+      # curtail 100% of all water use on non-lcs fields
+      non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
+      curtail_output[curtail_months,non_lcs_fields_colnames] = 1
+
+    }
   }
 
 

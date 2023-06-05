@@ -22,6 +22,8 @@ write_scenario_prep_batchfile <- function(scenario_name='basecase',
   write('', file = f, append=T)
   write(':: Copy scenario independant MODFLOW model files', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\system_commands.txt Run\\SWBM /Y /I', file = f, append=T)
+  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\ET_Zone_Cells.txt Run\\SWBM /Y /I', file = f, append=T)
+  write('xcopy SVIHM_Input_Files\\time_independent_input_files\\ET_Cells_Extinction_Depth.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\recharge_zones.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\SFR_network.txt Run\\SWBM /Y /I', file = f, append=T)
   write('xcopy SVIHM_Input_Files\\time_independent_input_files\\SFR_routing.txt Run\\SWBM /Y /I', file = f, append=T)

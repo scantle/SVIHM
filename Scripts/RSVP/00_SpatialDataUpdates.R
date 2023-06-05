@@ -353,6 +353,7 @@ save_updated_polygons_table_txt = function(){
   poly_tab$subws_ID[poly_tab$subws_ID == 9] = 1
 
   # Assign runoff_ISEG to the segment downstream of each respective subwatershed
+  if(!exists("svihm_fields")){svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))}
   poly_tab$runoff_ISEG = get_polygons_runoff_ISEG(svihm_fields=svihm_fields, poly_tab=poly_tab)
 
   # Convert the ILR Flag 1s and 0s (in the 2018 version) to logicals
@@ -378,6 +379,9 @@ save_updated_polygons_table_txt = function(){
   SWBM_LU_new = lu_df$lu_code_22[match(poly_tab$SWBM_LU, lu_df$lu_code)]
 
   poly_tab$SWBM_LU = SWBM_LU_new
+
+  # revise water holding capacity to be per meter, instead of per 8-feet (2.4384 m)
+  poly_tab$AWCcmprcm = poly_tab$AWCcmprcm / (8 / 3.28084)
 
   # Save polygons_table.txt in the time_indep_dir, excluding notes column.
   write.table(poly_tab, file = file.path(data_dir["time_indep_dir","loc"],"polygons_table.txt"),
@@ -645,13 +649,29 @@ save_scott_parcels_shapefile = function(){
 #'
 
 check_fields_match = function(){
+  m2_to_acres = 1/4046.86
+
   dir_2023 = file.path(data_dir["svihm_dir","loc"],"Run", "SWBM")
   dir_2018 = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
   # Read in reference csv of poly_tab
   poly_tab_23 = read.table(file.path(dir_2023,"polygons_table.txt"),
                       header = T)
-  poly_tab_18 = read.csv(file.path(data_dir["ref_data_dir","loc"],
-                                   "polygons_table_ref.csv"), header = T)
+  poly_tab_18 = read.table(file.path(dir_2018, "polygons_table.txt"),
+                           header = T, comment = "!", fill=T)
+
+  #check that water sources and irrigation are identical. (yep)
+  poly_tab_23$wat_src_18 = poly_tab_18$Water_Source[match(poly_tab_23$SWBM_id, poly_tab_18$X.ID)]
+  sum(poly_tab_23$WATERSOURC == poly_tab_23$wat_src_18)
+  poly_tab_23$irr_18 = poly_tab_18$Irrigation[match(poly_tab_23$SWBM_id, poly_tab_18$X.ID)]
+  sum(poly_tab_23$SWBM_IRR == poly_tab_23$irr_18)
+  # acreage of different water sources
+  sum(poly_tab_23$MF_Area_m2[poly_tab_23$WATERSOURC==1]) * m2_to_acres # 6484 acres under SW
+  sum(poly_tab_23$MF_Area_m2[poly_tab_23$WATERSOURC==2]) * m2_to_acres # 16540 acres under GW
+  sum(poly_tab_23$MF_Area_m2[poly_tab_23$WATERSOURC==3]) * m2_to_acres # 5084 acres under mixed SW-GW
+  sum(poly_tab_23$MF_Area_m2[poly_tab_23$WATERSOURC==4]) * m2_to_acres # 2106 acres subirrigated
+  sum(poly_tab_23$MF_Area_m2[poly_tab_23$WATERSOURC==4]) * m2_to_acres # 2106 acres subirrigated
+
+
 
   # Read in fields spatial file for spatial relation
   svihm_fields = read_sf(dsn = file.path(data_dir["ref_data_dir","loc"],"Landuse_20190219.shp"))
