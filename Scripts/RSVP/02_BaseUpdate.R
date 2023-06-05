@@ -13,7 +13,7 @@ end_year   <- as.numeric(format(Sys.Date(), "%Y"))  # Assumes current year
 update_dir <- latest_dir(data_dir['update_dir','loc'])
 
 # Scenario selection
-current_scenario = "basecase_2023.06.04_curtail_30_pct_2023" # default is "basecase". Affects a variety of input files.
+current_scenario = "basecase_2023.06.05_curtail_50_pct_2023" # default is "basecase". Affects a variety of input files.
 
 # Current coded-up scenario names:
 # "basecase"
@@ -21,6 +21,10 @@ current_scenario = "basecase_2023.06.04_curtail_30_pct_2023" # default is "basec
 # "curtail_10_pct_2022"
 # "curtail_30_pct_2022"
 # "curtail_50_pct_2022"
+# "basecase_2023.06.05_curtail_00_pct_2023"
+# "basecase_2023.06.05_curtail_10_pct_2023"
+# "basecase_2023.06.05_curtail_30_pct_2023"
+# "basecase_2023.06.05_curtail_50_pct_2023"
 
 # ------------------------------------------------------------------------------------------------#
 
@@ -29,7 +33,7 @@ current_scenario = "basecase_2023.06.04_curtail_30_pct_2023" # default is "basec
 model_start_date <- get_model_start(start_year)
 model_end_date <- as.Date(basename(update_dir)) #as.Date('2022-03-31')
 
-model_end_date <- as.Date('2023-12-31') # temp. for 2023 curtailment scenarios, 2023.06.04
+model_end_date <- as.Date('2023-12-31') # temp. for 2023 curtailment scenarios, as of 2023.06.05
 
 num_stress_periods <- calc_num_stress_periods(model_start_date, model_end_date)
 num_days <- days_in_month_diff(model_start_date, model_end_date)  # current setup: days = time steps

@@ -10,7 +10,8 @@ write_SWBM_curtailment_file(
   start_date,
   end_date,
   apn_overlap_threshold = 0.5,
-  exclude_terrible_and_major_overflow_polygons = F
+  exclude_terrible_and_major_overflow_polygons = F,
+  curtail_100_pct_non_lcs_fields = T
 )
 }
 \arguments{

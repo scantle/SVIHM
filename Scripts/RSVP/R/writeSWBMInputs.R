@@ -753,10 +753,17 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
                            "curtail_00_pct_all_years",
                            "curtail_50_pct_2022",
                            "curtail_30_pct_2022", "curtail_10_pct_2022",
-                           "basecase_2023.06.04_curtail_30_pct_2023")
+                           "basecase_2023.06.05_curtail_00_pct_2023",
+                           "basecase_2023.06.05_curtail_30_pct_2023")
   curtail_scenarios = c("curtail_00_pct_all_years", "curtail_50_pct_2022",
                         "curtail_30_pct_2022", "curtail_10_pct_2022")
-  curtail_2023_scenarios = c("basecase_2023.06.04_curtail_30_pct_2023") # 2023 projected curtailment scenarios, June 4th 2023
+  curtail_2023_scenarios = c("basecase_2023.06.05_curtail_00_pct_2023",
+                             "basecase_2023.06.05_curtail_10_pct_2023",
+                             "basecase_2023.06.05_curtail_20_pct_2023",
+                             "basecase_2023.06.05_curtail_30_pct_2023",
+                             "basecase_2023.06.05_curtail_40_pct_2023",
+                             "basecase_2023.06.05_curtail_50_pct_2023",
+                             "basecase_2023.06.05_curtail_60_pct_2023") # 2023 projected curtailment scenarios, June 4th 2023
   output_filename = "curtailment_fractions.txt"
   print(paste("Writing SWBM file:", output_filename))
 
@@ -982,11 +989,19 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     ## reported curtail app % conserved for a given month, times
     ## the Landuse fields-area-to-reported-acreage-area ratio
 
-    conserv_for_model = paste0(month.abb[4:10], "_pct_cons_model")
-    summary_tab_22[,conserv_for_model] = NA
-    summary_tab_22[,conserv_for_model] = summary_tab_22[,conserv_preweight] * summary_tab_22$acres_reported_to_gis_ratio
+    conserv_for_model_lcs = paste0(month.abb[4:10], "_pct_cons_model")
+    summary_tab_22[,conserv_for_model_lcs] = NA
+    summary_tab_22[,conserv_for_model_lcs] = summary_tab_22[,conserv_preweight] * summary_tab_22$acres_reported_to_gis_ratio
 
     ## _2022 non-LCS fields -------------------------------------------------------
+
+    # OK. there are 3 time periods we are dealing with here.
+    # LCS months, Apr-Oct 2022.
+    # Non-LCS fields curtailed on July 13 - so July 2022 is 0.5 curtailment for non-LCS fields.
+    # Non-LCS fields remained curtailed through October 2022. So Aug-Oct 2022 is 1.0 curtailment for non-LCS fields.
+
+    conserv_for_model_nonlcs_0.5 = paste0(month.abb[7], "_pct_cons_model")
+    conserv_for_model_nonlcs_1.0 = paste0(month.abb[8:10], "_pct_cons_model")
 
     non_lcs_fields = lcs_fields_all[is.na(lcs_fields_all$LCS_APP),]
     # include fields listed as App #0, I think that's a quality control thing
@@ -994,22 +1009,46 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     non_lcs_fields = rbind(non_lcs_fields, fields_0)
     non_lcs_field_ids = non_lcs_fields$Poly_nmbr
     # curtail 100% of all water use on non-lcs fields
-    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model] = 1
+    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model_nonlcs_0.5] = 0.5
+    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model_nonlcs_1.0] = 1.0
 
-    # Produce: month-by-field curtailment fraction tables
+    # _Produce: month-by-field curtailment fraction tables for historical basecase ---------------------------------------------
     # Initialize model input file (curtail_output of this process, input for model run)
     curtail_output = field_df
     swbm_ids = sort(svihm_fields$Polynmbr)
     # match months to stress periods
-    conserv_2022_month_dates = as.Date(paste0("2022-",4:10,"-01"))
+    # Basecase: non-LCS fields get 0.5 curtailment in July, 1.0 Aug, Sept, Oct of 2022
+    conserv_2022_months_lcs = as.Date(paste0("2022-",4:10,"-01"))
+    conserv_2022_month_dates_0.5 = as.Date(paste0("2022-",7,"-01"))
+    conserv_2022_month_dates_1.0 = as.Date(paste0("2022-",8:10,"-01"))
 
     # Make the final input file. Make it run in fortran.
-
-    date_matcher_tab = data.frame(stress_per_date = conserv_2022_month_dates,
-                                  curtail_colname = conserv_for_model)
-    for(i in 1:nrow(date_matcher_tab)){
-      sp = date_matcher_tab$stress_per_date[i]
-      cname = date_matcher_tab$curtail_colname[i]
+    date_matcher_tab_lcs = data.frame(stress_per_date = conserv_2022_months_lcs,
+                                  curtail_colname = conserv_for_model_lcs)
+    date_matcher_tab_0.5 = data.frame(stress_per_date = conserv_2022_month_dates_0.5,
+                                  curtail_colname = conserv_for_model_nonlcs_0.5)
+    date_matcher_tab_1.0 = data.frame(stress_per_date = conserv_2022_month_dates_1.0,
+                                      curtail_colname = conserv_for_model_nonlcs_1.0)
+    # Assign curtailment fractions for LCS fields, Apr-Oct 2022
+    for(i in 1:nrow(date_matcher_tab_lcs)){
+      sp = date_matcher_tab_lcs$stress_per_date[i]
+      cname = date_matcher_tab_lcs$curtail_colname[i]
+      # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
+      curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
+        summary_tab_22[match(swbm_ids, summary_tab_22$swbm_id),cname]
+    }
+    # Assign curtailments for non-LCS fields, 0.5 Jul 2022
+    for(i in 1:nrow(date_matcher_tab_0.5)){
+      sp = date_matcher_tab_0.5$stress_per_date[i]
+      cname = date_matcher_tab_0.5$curtail_colname[i]
+      # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
+      curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
+        summary_tab_22[match(swbm_ids, summary_tab_22$swbm_id),cname]
+    }
+    # Assign curtailments for non-LCS fields, 1.0 Aug-Oct 2022
+    for(i in 1:nrow(date_matcher_tab_1.0)){
+      sp = date_matcher_tab_1.0$stress_per_date[i]
+      cname = date_matcher_tab_1.0$curtail_colname[i]
       # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
       curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
         summary_tab_22[match(swbm_ids, summary_tab_22$swbm_id),cname]
@@ -1049,11 +1088,10 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     curtail_output[,field_cols][curtail_output[,field_cols] > 1] = 1
   }
 
-  ## Non-basecase scenarios
+  ## Non-basecase scenarios -------------------------------------------------
   if(tolower(scenario_id)=="curtail_00_pct_all_years"){
     curtail_output = field_df
   }
-
   if(tolower(scenario_id)=="curtail_50_pct_2022"){
     curtail_output = field_df
 
@@ -1113,30 +1151,80 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
     curtail_output[curtail_months,non_lcs_fields_colnames] = 1
   }
-  if(tolower(scenario_id)=="basecase_2023.06.04_curtail_30_pct_2023"){
-    curtail_frac_2023 = 0.3
-
-    curtail_output = field_df
-
-    curtail_months = curtail_output$Stress_Period >= as.Date("2023-06-01") &
+  # For scenarios in the June 2023, forcast the rest of 2023 group
+  apply_curtail_frac_to_forecasted_2023 = function(curtail_output, curtail_frac_lcs_2023){
+    #implement LCS curtailments April-Oct
+    curtail_months_lcs = curtail_output$Stress_Period >= as.Date("2023-04-01") &
       curtail_output$Stress_Period <= as.Date("2023-10-01")
     lcs_fields = lcs_fields_all[!is.na(lcs_fields_all$LCS_APP),]
     # plot(lcs_fields$geometry)
     lcs_fields_colnames = paste0("ID_",lcs_fields$Poly_nmbr)
-    curtail_output[curtail_months,lcs_fields_colnames] = curtail_frac_2023
+    curtail_output[curtail_months_lcs,lcs_fields_colnames] = curtail_frac_lcs_2023
 
-    if(curtail_100_pct_non_lcs_fields == TRUE){
-      # Assign 100% curtailment to non-LCS fields
-      non_lcs_fields = lcs_fields_all[is.na(lcs_fields_all$LCS_APP),]
-      # include fields listed as App #0, I think that's a quality control thing
-      fields_0 = lcs_fields_all[lcs_fields_all$LCS_APP==0 & !is.na(lcs_fields_all$LCS_APP),]
-      non_lcs_fields = rbind(non_lcs_fields, fields_0)
-      non_lcs_field_ids = non_lcs_fields$Poly_nmbr
-      # curtail 100% of all water use on non-lcs fields
-      non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
-      curtail_output[curtail_months,non_lcs_fields_colnames] = 1
+    # Assign 100% curtailment to non-LCS fields for Sep and Oct 2023
+    curtail_months_nonlcs = curtail_output$Stress_Period >= as.Date("2023-09-01") &
+      curtail_output$Stress_Period <= as.Date("2023-10-01")
+    non_lcs_fields = lcs_fields_all[is.na(lcs_fields_all$LCS_APP),]
+    # include fields listed as App #0, I think that's a quality control thing
+    fields_0 = lcs_fields_all[lcs_fields_all$LCS_APP==0 & !is.na(lcs_fields_all$LCS_APP),]
+    non_lcs_fields = rbind(non_lcs_fields, fields_0)
+    non_lcs_field_ids = non_lcs_fields$Poly_nmbr
+    # curtail 100% of all water use on non-lcs fields
+    non_lcs_fields_colnames = paste0("ID_",non_lcs_fields$Poly_nmbr)
+    curtail_output[curtail_months_nonlcs,non_lcs_fields_colnames] = 1
 
+    # # 2023 forecast, 2023.06.04: non-LCS fields get 1.0 curtailment in Sept and Oct
+    # conserv_2023_month_dates_1.0 = as.Date(paste0("2023-",9:10,"-01"))
+
+    return(curtail_output)
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_00_pct_2023"){
+    # Do nothing. Default basecase, if you put in the full 2023 record, will have 0s for all the 2023 months
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_10_pct_2023"){
+    # For 2023, assuming flow conditions similar to 2019, we would implement the full LCS
+    # curtailments for April-October, but the 100% curtailments on non-LCS fields
+    # only for Aug-Sept, based on dropping below 30 and 33 cfs in those months
+    # https://www.waterboards.ca.gov/waterrights/water_issues/programs/drought/scott_shasta_rivers/docs/scott_adjudicated_gw_curtailment_order.pdf
+    # https://waterdata.usgs.gov/monitoring-location/11519500/#parameterCode=00060&startDT=2019-01-01&endDT=2020-01-01
+    curtail_output = apply_curtail_frac_to_forecasted_2023(curtail_output=curtail_output,
+                                                           curtail_frac_lcs_2023 = 0.1)
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_20_pct_2023"){
+    # For 2023, assuming flow conditions similar to 2019, we would implement the full LCS
+    # curtailments for April-October, but the 100% curtailments on non-LCS fields
+    # only for Aug-Sept, based on dropping below 30 and 33 cfs in those months
+    # https://www.waterboards.ca.gov/waterrights/water_issues/programs/drought/scott_shasta_rivers/docs/scott_adjudicated_gw_curtailment_order.pdf
+    # https://waterdata.usgs.gov/monitoring-location/11519500/#parameterCode=00060&startDT=2019-01-01&endDT=2020-01-01
+    curtail_output = apply_curtail_frac_to_forecasted_2023(curtail_output=curtail_output,
+                                                           curtail_frac_lcs_2023 = 0.2)
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_30_pct_2023"){
+    # For 2023, assuming flow conditions similar to 2019, we would implement the full LCS
+    # curtailments for April-October, but the 100% curtailments on non-LCS fields
+    # only for Aug-Sept, based on dropping below 30 and 33 cfs in those months
+    # https://www.waterboards.ca.gov/waterrights/water_issues/programs/drought/scott_shasta_rivers/docs/scott_adjudicated_gw_curtailment_order.pdf
+    # https://waterdata.usgs.gov/monitoring-location/11519500/#parameterCode=00060&startDT=2019-01-01&endDT=2020-01-01
+    curtail_output = apply_curtail_frac_to_forecasted_2023(curtail_output=curtail_output,
+                                          curtail_frac_lcs_2023 = 0.3)
     }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_40_pct_2023"){
+    # For 2023, assuming flow conditions similar to 2019, we would implement the full LCS
+    # curtailments for April-October, but the 100% curtailments on non-LCS fields
+    # only for Aug-Sept, based on dropping below 30 and 33 cfs in those months
+    # https://www.waterboards.ca.gov/waterrights/water_issues/programs/drought/scott_shasta_rivers/docs/scott_adjudicated_gw_curtailment_order.pdf
+    # https://waterdata.usgs.gov/monitoring-location/11519500/#parameterCode=00060&startDT=2019-01-01&endDT=2020-01-01
+    curtail_output = apply_curtail_frac_to_forecasted_2023(curtail_output=curtail_output,
+                                                           curtail_frac_lcs_2023 = 0.4)
+  }
+  if(tolower(scenario_id)=="basecase_2023.06.05_curtail_50_pct_2023"){
+    # For 2023, assuming flow conditions similar to 2019, we would implement the full LCS
+    # curtailments for April-October, but the 100% curtailments on non-LCS fields
+    # only for Aug-Sept, based on dropping below 30 and 33 cfs in those months
+    # https://www.waterboards.ca.gov/waterrights/water_issues/programs/drought/scott_shasta_rivers/docs/scott_adjudicated_gw_curtailment_order.pdf
+    # https://waterdata.usgs.gov/monitoring-location/11519500/#parameterCode=00060&startDT=2019-01-01&endDT=2020-01-01
+    curtail_output = apply_curtail_frac_to_forecasted_2023(curtail_output=curtail_output,
+                                                           curtail_frac_lcs_2023 = 0.5)
   }
 
 
@@ -1145,6 +1233,9 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     print("Warning: specified curtailment scenario not recognized in current codebase. Using basecase curtailment file")
   }
 
+  if(tolower(scenario_id) %in% curtail_2023_scenarios){
+    output_filename = paste0("curtailment_fractions_", scenario_id,".txt")
+  }
   write.table(curtail_output, file = file.path(output_dir, output_filename),
               sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
