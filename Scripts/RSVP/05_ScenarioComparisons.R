@@ -29,21 +29,40 @@ create_sp_charts = FALSE  # Many SPs, very slow
 # swbm_dir = file.path(run_dir, 'SWBM')
 # mf_dir <- file.path(run_dir, 'MODFLOW')
 # Scenario 1
+# # s1_dir <- file.path('../../Scenarios/no_curtail_2023.05.08') # RUN THIS
+# s1 = "curtail_00_pct_all_years"
+# s1_dir <- file.path('../../Scenarios', s1)
+# swbm1_dir = file.path(s1_dir, 'SWBM')
+# mf1_dir <- file.path(s1_dir, 'MODFLOW')
+# s2 = "basecase_2023.05.17"
+# s2_dir <- file.path('../../Scenarios',s2)
+# swbm2_dir = file.path(s2_dir, 'SWBM')
+# mf2_dir <- file.path(s2_dir, 'MODFLOW')
+# # more scenarios?
+# s3 = "curtail_50_pct_2022"
+# s3_dir <- file.path('../../Scenarios',s3)
+# swbm3_dir = file.path(s3_dir, 'SWBM')
+# mf3_dir <- file.path(s3_dir, 'MODFLOW')
+# s4 = "curtail_30_pct_2022"
+# s4_dir <- file.path('../../Scenarios',s4)
+# swbm4_dir = file.path(s4_dir, 'SWBM')
+# mf4_dir <- file.path(s4_dir, 'MODFLOW')
+
 # s1_dir <- file.path('../../Scenarios/no_curtail_2023.05.08') # RUN THIS
-s1 = "curtail_00_pct_all_years"
+s1 = "basecase_2023.06.05_curtail_00_pct_2023"
 s1_dir <- file.path('../../Scenarios', s1)
 swbm1_dir = file.path(s1_dir, 'SWBM')
 mf1_dir <- file.path(s1_dir, 'MODFLOW')
-s2 = "basecase_2023.05.17"
+s2 = "basecase_2023.06.05_curtail_10_pct_2023"
 s2_dir <- file.path('../../Scenarios',s2)
 swbm2_dir = file.path(s2_dir, 'SWBM')
 mf2_dir <- file.path(s2_dir, 'MODFLOW')
 # more scenarios?
-s3 = "curtail_50_pct_2022"
+s3 = "basecase_2023.06.05_curtail_30_pct_2023"
 s3_dir <- file.path('../../Scenarios',s3)
 swbm3_dir = file.path(s3_dir, 'SWBM')
 mf3_dir <- file.path(s3_dir, 'MODFLOW')
-s4 = "curtail_30_pct_2022"
+s4 = "basecase_2023.06.05_curtail_50_pct_2023"
 s4_dir <- file.path('../../Scenarios',s4)
 swbm4_dir = file.path(s4_dir, 'SWBM')
 mf4_dir <- file.path(s4_dir, 'MODFLOW')
@@ -68,7 +87,8 @@ out_dir = file.path('../../Scenarios', "_Comparison_Plots")
 
 if (!dir.exists(plots1_dir)) {dir.create(plots1_dir, recursive = T)}
 if (!dir.exists(plots2_dir)) {dir.create(plots2_dir, recursive = T)}
-# if (!dir.exists(plots3_dir)) {dir.create(plots2_dir, recursive = T)}
+# if (!dir.exists(plots3_dir)) {dir.create(plots3_dir, recursive = T)}
+# if (!dir.exists(plots4_dir)) {dir.create(plots4_dir, recursive = T)}
 
 # info from general_inputs.txt
 gen_inputs1 = strsplit(readLines(file.path(swbm1_dir, "general_inputs.txt")), "  ")
@@ -379,7 +399,7 @@ fjsim5 = streams_sim5[[1]]
 ## WHat?? really?? 100 cfs flow difference in fcking June?
 
 flow_units = "Flow (cfs)"
-date_lims = as.Date(c("2015-01-01","2015-12-31"))
+date_lims = as.Date(c("2014-01-01","2014-12-31"))
 
 # png(filename = file.path(out_dir, "prelim fj comparison, 0 curtail, basecase and obs.png"),
   # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",

@@ -43,6 +43,7 @@ update_dir <- create_update_dir(end_date = model_end_date)
 # Weather Data ------------------------------------------------------------------------------------
 
 # Precip
+rnoaa::meteo_clear_cache(force = TRUE)  # Been having issues with rnoaa cache updating...
 prcp <- get_daily_precip_table(model_start_date, model_end_date)
 write_swbm_precip_input_file(p_record = prcp, output_dir = update_dir, filename = 'precip.txt')
 

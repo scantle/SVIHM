@@ -13,7 +13,7 @@ end_year   <- as.numeric(format(Sys.Date(), "%Y"))  # Assumes current year
 update_dir <- latest_dir(data_dir['update_dir','loc'])
 
 # Scenario selection
-current_scenario = "basecase_2023.06.05_curtail_50_pct_2023" # default is "basecase". Affects a variety of input files.
+current_scenario = "basecase_2023.06.05_curtail_00_pct_2023" # default is "basecase". Affects a variety of input files.
 
 # Current coded-up scenario names:
 # "basecase"
@@ -34,6 +34,7 @@ model_start_date <- get_model_start(start_year)
 model_end_date <- as.Date(basename(update_dir)) #as.Date('2022-03-31')
 
 model_end_date <- as.Date('2023-12-31') # temp. for 2023 curtailment scenarios, as of 2023.06.05
+# for running the curtailment writing function and generating modflow inputs
 
 num_stress_periods <- calc_num_stress_periods(model_start_date, model_end_date)
 num_days <- days_in_month_diff(model_start_date, model_end_date)  # current setup: days = time steps
@@ -141,5 +142,6 @@ update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
 # Create new batchfile for assembling the updated model
 write_update_prep_batchfile(update_dir = update_dir,
                             scenario_name = current_scenario)
+
 
 

@@ -84,6 +84,18 @@ get_daily_precip_table <- function(start_date,
   p_record$stitched = p_record$PRCP_mm_orig
   p_record$stitched[is.na(p_record$PRCP_mm_orig)] = p_record$interp_cal_fj_mean[is.na(p_record$PRCP_mm_orig)]
 
+  # Fill any remaining NaN values (days with no rainfall data at any of the 6 stations)
+  # with averages of the preceding and next-day-with-data values
+  nan_indices = which(is.nan(p_record$stitched))
+  for(i in 1:length(nan_indices)){
+    nan_index = nan_indices[i]
+    days_with_data_indices = which(!is.nan(p_record$stitched))
+    next_index_with_data = min(days_with_data_indices[days_with_data_indices > nan_index])
+    p_record$stitched[nan_index] = mean(c(p_record$stitched[nan_index - 1],
+                                        p_record$stitched[next_index_with_data]))
+  }
+
+
   #Note: this include filling the leap days missing in the original record :)
 
   # orig_record_end_date = as.Date("2011-09-30"); orig_record_start_date = as.Date("1990-10-01")
