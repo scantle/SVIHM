@@ -19,8 +19,7 @@ create_sp_charts = FALSE  # Many SPs, very slow
 
 # Directories
 run_dir <- file.path('../../Run/')
-run_dir <- file.path('../../Run_ets_testing/')
-# run_dir = file.path("../../Scenarios/basecase_2023.06.05_curtail_00_pct_2023")
+run_dir = file.path("../../Scenarios/basecase_2023.06.05_curtail_50_pct_2023")
 swbm_dir = file.path(run_dir, 'SWBM')
 mf_dir <- file.path(run_dir, 'MODFLOW')
 # TODO automate finding latest version

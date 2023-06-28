@@ -28,16 +28,29 @@ create_sp_charts = FALSE  # Many SPs, very slow
 # run_dir <- file.path('../../Run/')
 # swbm_dir = file.path(run_dir, 'SWBM')
 # mf_dir <- file.path(run_dir, 'MODFLOW')
-# Scenario 1
-# # s1_dir <- file.path('../../Scenarios/no_curtail_2023.05.08') # RUN THIS
-# s1 = "curtail_00_pct_all_years"
-# s1_dir <- file.path('../../Scenarios', s1)
+
+# # Plot 1: 2018 calibrated basecase vs updated 2023 basecase versions
+# s1 = "basecase_2023.06.05"
+# s1_dir <- file.path('../../Scenarios',s1)
 # swbm1_dir = file.path(s1_dir, 'SWBM')
 # mf1_dir <- file.path(s1_dir, 'MODFLOW')
-# s2 = "basecase_2023.05.17"
-# s2_dir <- file.path('../../Scenarios',s2)
+# s5 = "basecase_2018"
+# s5_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
+# swbm5_dir = s5_dir
+# mf5_dir = s5_dir
+
+
+# # Plot 2: 2022 what-if curtailment scenarios
+# s1 = "basecase_2023.06.05"
+# s1_dir <- file.path('../../Scenarios',s1)
+# swbm1_dir = file.path(s1_dir, 'SWBM')
+# mf1_dir <- file.path(s1_dir, 'MODFLOW')
+#
+# s2 = "curtail_00_pct_all_years"
+# s2_dir <- file.path('../../Scenarios', s2)
 # swbm2_dir = file.path(s2_dir, 'SWBM')
 # mf2_dir <- file.path(s2_dir, 'MODFLOW')
+
 # # more scenarios?
 # s3 = "curtail_50_pct_2022"
 # s3_dir <- file.path('../../Scenarios',s3)
@@ -48,7 +61,7 @@ create_sp_charts = FALSE  # Many SPs, very slow
 # swbm4_dir = file.path(s4_dir, 'SWBM')
 # mf4_dir <- file.path(s4_dir, 'MODFLOW')
 
-# s1_dir <- file.path('../../Scenarios/no_curtail_2023.05.08') # RUN THIS
+### Plot 3: 2023 curtailment forecasts
 s1 = "basecase_2023.06.05_curtail_00_pct_2023"
 s1_dir <- file.path('../../Scenarios', s1)
 swbm1_dir = file.path(s1_dir, 'SWBM')
@@ -68,25 +81,22 @@ swbm4_dir = file.path(s4_dir, 'SWBM')
 mf4_dir <- file.path(s4_dir, 'MODFLOW')
 
 
-s5 = "basecase_2018"
-s5_dir = "C:/Users/Claire/Documents/GitHub/SVIHM/Scenarios/basecase"
-swbm5_dir = s5_dir
-mf5_dir = s5_dir
+
 
 # TODO automate finding latest version
 update_dir <- latest_dir(data_dir['update_dir','loc'])  #file.path('../../SVIHM_Input_Files/Updates/2022-04-13/')
 plot_data_dir = file.path('../../SVIHM_Input_Files/reference_data_for_plots/')
 
 
-plots1_dir <- file.path(s1_dir, 'Plots')
-plots2_dir <- file.path(s2_dir, 'Plots')
+# plots1_dir <- file.path(s1_dir, 'Plots')
+# plots2_dir <- file.path(s2_dir, 'Plots')
 #plots3_dir <- file.path(s3_dir, "Plots")
 #plots4_dir <- file.path(s4_dir, "Plots")
 out_dir = file.path('../../Scenarios', "_Comparison_Plots")
 
 
-if (!dir.exists(plots1_dir)) {dir.create(plots1_dir, recursive = T)}
-if (!dir.exists(plots2_dir)) {dir.create(plots2_dir, recursive = T)}
+# if (!dir.exists(plots1_dir)) {dir.create(plots1_dir, recursive = T)}
+# if (!dir.exists(plots2_dir)) {dir.create(plots2_dir, recursive = T)}
 # if (!dir.exists(plots3_dir)) {dir.create(plots3_dir, recursive = T)}
 # if (!dir.exists(plots4_dir)) {dir.create(plots4_dir, recursive = T)}
 
@@ -113,22 +123,22 @@ fj_obs <- read.csv(file.path(update_dir, list.files(update_dir, pattern = 'FJ (U
                    stringsAsFactors = F)
 fj_obs$Date <- as.Date(fj_obs$Date)
 
-#-- Serpa Lane (Not in GITHUB - stored locally #TODO permissions)
-sl_obs <- read.table('c:/Users/lelan/Box/Research/Scott Valley/Data/Streamflow/Scott River Above Serpa Lane.txt',
-                     header=T)
-sl_obs$Date <- as.Date(sl_obs$Date, format = '%m/%d/%Y')
-sl_obs$Flow <- sl_obs$Streamflow_cfs
-
-#-- Below Youngs Dam (Not in GITHUB - stored locally #TODO permissions)
-by_obs <- read.table('c:/Users/lelan/Box/Research/Scott Valley/Data/Streamflow/Scott River Below Youngs Dam.txt',
-                     header=T)
-by_obs$Date <- as.Date(by_obs$Date, format = '%m/%d/%Y')
-by_obs$Flow <- by_obs$Streamflow_cfs
-
-#-- Group surface water
-streams <- list(fj_obs, sl_obs, by_obs)
-stream_names <- c('Fort Jones', 'Serpa Lane', 'Below Youngs Dam')
-stream_short <- c('FJ', 'AS', 'BY')
+# #-- Serpa Lane (Not in GITHUB - stored locally #TODO permissions)
+# sl_obs <- read.table('c:/Users/lelan/Box/Research/Scott Valley/Data/Streamflow/Scott River Above Serpa Lane.txt',
+#                      header=T)
+# sl_obs$Date <- as.Date(sl_obs$Date, format = '%m/%d/%Y')
+# sl_obs$Flow <- sl_obs$Streamflow_cfs
+#
+# #-- Below Youngs Dam (Not in GITHUB - stored locally #TODO permissions)
+# by_obs <- read.table('c:/Users/lelan/Box/Research/Scott Valley/Data/Streamflow/Scott River Below Youngs Dam.txt',
+#                      header=T)
+# by_obs$Date <- as.Date(by_obs$Date, format = '%m/%d/%Y')
+# by_obs$Flow <- by_obs$Streamflow_cfs
+#
+# #-- Group surface water
+# streams <- list(fj_obs, sl_obs, by_obs)
+# stream_names <- c('Fort Jones', 'Serpa Lane', 'Below Youngs Dam')
+# stream_short <- c('FJ', 'AS', 'BY')
 
 #-------------------------------------------------------------------------------------------------#
 
@@ -136,17 +146,17 @@ stream_short <- c('FJ', 'AS', 'BY')
 #-- Modeled
 
 #-- HOB data
-hob_locs <- read.csv(file.path(data_dir['ref_data_dir','loc'], 'hob_wells.csv'),
-                     row.names=1, stringsAsFactors = F)
-hob1 <- import_HOB(hob_input = file.path(mf1_dir, 'SVIHM.hob'),
-                  hob_output = file.path(mf1_dir, 'HobData_SVIHM.dat'),
-                  origin_date = origin_date)
-hob1 <- hob1[order(hob1$row, hob1$column),]
-
-hob2 <- import_HOB(hob_input = file.path(mf2_dir, 'SVIHM.hob'),
-                   hob_output = file.path(mf2_dir, 'HobData_SVIHM.dat'),
-                   origin_date = origin_date)
-hob2 <- hob1[order(hob2$row, hob2$column),]
+# hob_locs <- read.csv(file.path(data_dir['ref_data_dir','loc'], 'hob_wells.csv'),
+#                      row.names=1, stringsAsFactors = F)
+# hob1 <- import_HOB(hob_input = file.path(mf1_dir, 'SVIHM.hob'),
+#                   hob_output = file.path(mf1_dir, 'HobData_SVIHM.dat'),
+#                   origin_date = origin_date)
+# hob1 <- hob1[order(hob1$row, hob1$column),]
+#
+# hob2 <- import_HOB(hob_input = file.path(mf2_dir, 'SVIHM.hob'),
+#                    hob_output = file.path(mf2_dir, 'HobData_SVIHM.dat'),
+#                    origin_date = origin_date)
+# hob2 <- hob1[order(hob2$row, hob2$column),]
 
 
 #-- SFR Data (Turn into function?)
@@ -359,78 +369,62 @@ for(i in 1:length(start_rows)){
 dev.off()
 
 
-
 # -------------------------------------------------------------------------#
 # -------------------------------------------------------------------------#
-# FJ Flow Comparison ------------------------------------------------------
+# FJ Flow Comparison 1: SWBM 2018 vs 2023 updated basecase ------------------------------------------------------
 
 
 fjsim1 = streams_sim1[[1]]
-fjsim2 = streams_sim2[[1]]
-fjsim3 = streams_sim3[[1]]
-fjsim4 = streams_sim4[[1]]
+# fjsim2 = streams_sim2[[1]]
+# fjsim3 = streams_sim3[[1]]
+# fjsim4 = streams_sim4[[1]]
 fjsim5 = streams_sim5[[1]]
 
-# fjsim_diff = fjsim1[,c("Time", "Date")]
-# if(flow_units %in% c("Flow Diff. (cfs)", "Flow (cfs)")){
-#   fjsim_diff$flow_s1 = fjsim1$Flow_cfs
-#   fjsim_diff$flow_s2 = fjsim2$Flow_cfs
-# } else if(flow_units %in% c("Flow Diff. (1000 m3/day)", "Flow (1000 m3/day)")){
-#   fjsim_diff$flow_s1 = fjsim1$Flow_m3_day
-#   fjsim_diff$flow_s2 = fjsim2$Flow_m3_day
-# }
-#
-# fjsim_diff$flow_diff = fjsim_diff$flow_s2 - fjsim_diff$flow_s1
-# plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l")
-#
-# fjsim_diff$flow_rel_diff = fjsim_diff$flow_diff / fjsim_diff$flow_s2
-#
-# date_lims = as.Date(c("2021-04-01","2023-02-01"))
-# plot(x = fjsim_diff$Date, y = fjsim_diff$flow_diff, type = "l",
-#      main = "Fort Jones Flow differences, \n basecase (2021+2022 curtailments) minus 0% curtailments",
-#      xlab = "Date", ylab = flow_units,
-#       xlim = date_lims)
-# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
-#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
-#      las = 2)
-# abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
-# abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
 
-## WHat?? really?? 100 cfs flow difference in fcking June?
+png(filename = file.path(out_dir, "basecase 2018 vs updated 2023 basecase.png"),
+    # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
+    height = 11/2, width = 18, units = "in", res = 300)
 
 flow_units = "Flow (cfs)"
-date_lims = as.Date(c("2014-01-01","2014-12-31"))
-
-# png(filename = file.path(out_dir, "prelim fj comparison, 0 curtail, basecase and obs.png"),
-  # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
-    # height = 11/2, width = 8.5, units = "in", res = 300)
-plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n", lwd=2,
-     main = "Fort Jones Flow, Obs. and two scenarios", col = "red",
+date_lims = as.Date(c("2010-01-01","2018-10-31"))
+plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y",
+     yaxt = "n", xaxt = "n", lwd=2, col = NA,
+     main = "Fort Jones Flow Comparison: Observed vs \n 2018 calibrated basecase, and updated 2023 basecase",
      xlab = "Date", ylab = flow_units,
      xlim = date_lims)
-lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'dodgerblue', lwd = 2)
+# lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'dodgerblue', lwd = 2)
 lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black", lwd = 2)
-lines(x = fjsim3$Date, y = fjsim3$Flow_cfs, col = "green4", lwd = 2)
-lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
+lines(x = fjsim1$Date, y = fjsim1$Flow_cfs, col = "dodgerblue", lwd = 2)
 
-lines(x = fjsim5$Date, y = fjsim5$Flow_cfs, col = "darkgray", lwd = 2, lty = 2)
-# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "month"),
-#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
-#      crt = 45)
-abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# lines(x = fjsim3$Date, y = fjsim3$Flow_cfs, col = "green4", lwd = 2)
+# lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
+# lines(x = curtail_flows_line$dates, y = curtail_flows_line$flow_cfs, lwd = 2, lty = 2, col = "blue")
+
+lines(x = fjsim5$Date, y = fjsim5$Flow_cfs, col = "red", lwd = 2)
+axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "year"),
+     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "year"), format = "%b-%y"),
+     crt = 45)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "year"), lty = 2, col = "gray")
 # abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
 abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
 axis(side = 2, 10^c(0,1,2,3,4))
 axis(side = 2, at = 1:9 * sort(rep(10^c(0,1,2,3,4),9)), labels = NA)
 
-legend_tab = data.frame(descrip = c("FJ Obs.", "Sim. 0% curtail",
-                                    "Sim. 2022 curtail", "Sim. 50% curtail", "Sim. 30% curtail", "Basecase 2018"),
-                        color = c("black", "red", "dodgerblue","green4", "goldenrod", "darkgray"))
 
-legend(x = "topleft", legend = legend_tab$descrip,
-       col = legend_tab$color, lwd = 2,  cex = .7)#, horiz=T)
+legend_tab = data.frame(descrip = c("FJ Obs.", #"Sim. 0% curtail, 2022",
+                                    "Basecase 2018 (through WY 2018)",
+                                    "Updated Basecase (June 5, 2023)"#, "Sim. 50% curtail", "Sim. 30% curtail",
+                                    ),
+                        color = c("black","red","dodgerblue"##"green4", "goldenrod",
+                                  # "gray30"
+                                  ),
+                        lty = c(1,1,1))
+
+legend(x = "bottomleft", legend = legend_tab$descrip, lty = legend_tab$lty,
+       col = legend_tab$color, lwd = 2,  cex = .7, horiz=T)
 
 dev.off()
+
 # plot(x = fjsim2$Date, y = fjsim2$Flow_cfs, type = "l", log = "y",
 #      main = "Fort Jones Flow, basecase (2022 curtailments)",
 #      xlab = "Date", ylab = flow_units,
@@ -439,6 +433,138 @@ dev.off()
 #      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "month"), format = "%b-%y"),
 #      crt = 45)
 # abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+
+
+
+
+# -------------------------------------------------------------------------#
+# -------------------------------------------------------------------------#
+# FJ Flow Comp. 2: SWBM 2022 what if curtailment scenarios ------------------------------------------------------
+
+
+fjsim1 = streams_sim1[[1]]
+fjsim2 = streams_sim2[[1]]
+# fjsim3 = streams_sim3[[1]]
+# fjsim4 = streams_sim4[[1]]
+# fjsim5 = streams_sim5[[1]]
+
+
+png(filename = file.path(out_dir, "basecase vs 00 pct curtail 2022.png"),
+    # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
+    height = 11/2, width = 8.5, units = "in", res = 300)
+
+flow_units = "Flow (cfs)"
+date_lims = as.Date(c("2020-01-01","2022-12-31"))
+plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n", lwd=2,
+     main = "Fort Jones Flow: Curtailment practices in 2022", col = "dodgerblue",
+     xlab = "Date", ylab = flow_units,
+     xlim = date_lims)
+lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'red', lwd = 2)
+lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black", lwd = 2)
+# lines(x = fjsim3$Date, y = fjsim3$Flow_cfs, col = "green4", lwd = 2)
+# lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
+# lines(x = curtail_flows_line$dates, y = curtail_flows_line$flow_cfs, lwd = 2, lty = 2, col = "blue")
+
+# lines(x = fjsim5$Date, y = fjsim5$Flow_cfs, col = "gray30", lwd = 2, lty = 2)
+axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"),
+     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), format = "%b-%y"),
+     crt = 45)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
+abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
+axis(side = 2, 10^c(0,1,2,3,4))
+axis(side = 2, at = 1:9 * sort(rep(10^c(0,1,2,3,4),9)), labels = NA)
+
+
+legend_tab = data.frame(descrip = c("FJ Obs.", "Sim. 2022 basecase", "Sim. 0% curtail, 2022"
+                                    #, "Sim. 50% curtail", "Sim. 30% curtail",
+                                    ),
+                        color = c("black","dodgerblue", "red"#,"green4", "goldenrod",
+                                  ),
+                        lty = c(1,1,1))
+
+legend(x = "bottomleft", legend = legend_tab$descrip, lty = legend_tab$lty,
+       col = legend_tab$color, lwd = 2,  cex = .7, ncol=2)#, horiz=T)
+
+dev.off()
+
+
+# -------------------------------------------------------------------------#
+# -------------------------------------------------------------------------#
+# FJ Flow Comp. 3: 2023 forecast scenarios ------------------------------------------------------
+
+
+fjsim1 = streams_sim1[[1]]
+fjsim2 = streams_sim2[[1]]
+fjsim3 = streams_sim3[[1]]
+fjsim4 = streams_sim4[[1]]
+# fjsim5 = streams_sim5[[1]]
+
+# make table of emergency minimum flow requirements
+date1 = as.Date("2023-01-01"); date2 = as.Date("2024-01-01")
+months_day1 = seq.Date(from = date1, to = date2, by = "month")
+flow_vals = c(200,200,200,150,150,125,50,30,33,40,60,150)
+curtail_flows = data.frame(start_date = months_day1[1:12],
+                           end_date = months_day1[2:13]-1,
+                           flow_cfs = flow_vals)
+starts_only = curtail_flows[,c("start_date","flow_cfs")]; colnames(starts_only) = c("dates", "flow_cfs")
+ends_only = curtail_flows[,c("end_date","flow_cfs")]; colnames(ends_only) = c("dates", "flow_cfs")
+curtail_flows_line = rbind(starts_only, ends_only)
+curtail_flows_line = curtail_flows_line[order(curtail_flows_line$dates),]
+
+# make table of 2019 flow data transposed into 2023
+last_date_2023 = max(fj_obs$Date)
+last_date_month = month(last_date_2023); last_date_day = day(last_date_2023)
+first_date_2019 = as.Date(paste0("2019-",last_date_month, "-",last_date_day))+1
+last_date_2019 = as.Date("2019-12-31")
+first_dummy_date = last_date_2023+1; last_dummy_date = as.Date("2023-12-31")
+dummy_dates_2023 = seq.Date(from = first_dummy_date, to = last_dummy_date, by = "day")
+
+fj_flow_2019 = fj_obs[fj_obs$Date>= first_date_2019 & fj_obs$Date <= last_date_2019,]
+fj_dummy_flow = data.frame(Date = dummy_dates_2023, Flow = fj_flow_2019$Flow)
+
+
+flow_units = "Flow (cfs)"
+date_lims = as.Date(c("2023-01-01","2023-12-31"))
+
+png(filename = file.path(out_dir, "fj comparison 2023 forecast_2023 only.png"),
+    # filename = "prelim fj comparison, 0 curtail, basecase and obs.png",
+    height = 11/2, width = 8.5, units = "in", res = 300)
+plot(x = fjsim1$Date, y = fjsim1$Flow_cfs, type = "l", log = "y", yaxt = "n", lwd=2,
+     main = "Fort Jones Flow, 2023 Forecasts", col = "red",
+     xlab = "Date", ylab = flow_units,
+     xlim = date_lims)
+# lines(x = fjsim2$Date, y = fjsim2$Flow_cfs, col = 'darkorchid', lwd = 2)
+lines(x = fj_obs$Date, y = fj_obs$Flow, col = "black", lwd = 2)
+lines(x = fjsim3$Date, y = fjsim3$Flow_cfs, col = "green4", lwd = 2)
+lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
+lines(x = curtail_flows_line$dates, y = curtail_flows_line$flow_cfs, lwd = 2, lty = 2, col = "blue")
+lines(x = fj_dummy_flow$Date, y = fj_dummy_flow$Flow, lty = 2)
+
+axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"),
+     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), format = "%b-%y"),
+     crt = 45)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
+abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
+axis(side = 2, 10^c(0,1,2,3,4))
+axis(side = 2, at = 1:9 * sort(rep(10^c(0,1,2,3,4),9)), labels = NA)
+
+legend_tab = data.frame(descrip = c("FJ Historical Obs.", "FJ Flow, 2019 Obs.",
+                                    "Sim. 0% LCS curtail", #"Sim. 10% LCS curtail",
+                                    "Sim. 30% LCS curtail",
+                                    "Sim. 50% LCS curtail", "Order WR 2021-0083-DWR flows"),# "Basecase 2018"),
+                        color = c("black","black", "red", #"darkorchid",
+                                  "green4", "goldenrod", "blue"),
+                        lwd = c(2,1,2,2,2,2),
+                        lty = c(1,2,1,1,1,2))
+
+
+legend(x = "bottomright", legend = legend_tab$descrip, lty = legend_tab$lty,
+       col = legend_tab$color, lwd = 2,  cex = .7, ncol=2)#, horiz=T)
+
+dev.off()
+
 
 
 # -------------------------------------------------------------------------#
