@@ -38,7 +38,7 @@ num_stress_periods <- calc_num_stress_periods(model_start_date, model_end_date)
 num_days <- days_in_month_diff(model_start_date, model_end_date)  # current setup: days = time steps
 
 # Directory (Created in SVIHM_Input_Files/Updates)
-update_dir <- create_update_dir(end_date = model_end_date)
+update_dir <- create_update_dir(end_date = model_end_date + 1)  # +1 for start of next month, first day not simulated
 
 # Weather Data ------------------------------------------------------------------------------------
 
@@ -48,18 +48,15 @@ prcp <- get_daily_precip_table(model_start_date, model_end_date)
 write_swbm_precip_input_file(p_record = prcp, output_dir = update_dir, filename = 'precip.txt')
 
 # ET
-et <- build_daily_et_df(model_start_date, model_end_date)
-# In case of CIMIS rejecting your query (try several times to be sure), download data from
-# CIMIS station 225 (daily data, csv file, metric units, 2015-04-19 through present),
-# save in update_dir, and use this workaround
-
-if(!exists("et")){
-  et <- build_daily_et_df(start_date = model_start_date, end_date = model_end_date,
-                          api_download = F, local_file = T, update_dir = update_dir)
-
+# Requests to CIMIS frequently fail, so the code is setup to try 25 times before giving up.
+for (i in 1:25) {
+  message('CIMIS Attempt ',i,"/ 25")
+  et <- tryCatch(build_daily_et_df(model_start_date, model_end_date),
+                 error=function(cond) {return(NA)})
+  if (max(!is.na(et))) { break }
+  else if (i==25) { stop('Repeated CIMIS queries failed. Server may be down.')}
 }
 write_swbm_et_input_file(et_record = et, output_dir = update_dir, filename = 'ref_et.txt')
-
 
 # River Flows -------------------------------------------------------------------------------------
 
@@ -70,10 +67,6 @@ fjd_model <- download_fort_jones_flow(model_start_date,
                                     save_csv = TRUE)
 
 tribs <- get_tributary_flows(end_date = model_end_date, fj_update = fjd_model)
-# PLACEHOLDER:
-# Workaround, 4/19/2023, to maintain consistency with old model inputs through WY2018
-#tribs_2018 = read.table(file = file.path(data_dir["ref_data_dir","loc"],"streamflow_input_through_wy2018.txt"), header = T)
-#tribs_2018$Month = as.Date(tribs_2018$Month)
 
 # Combine East and South Fork stream records into one volumetric record (since that is how it's simulated in SVIHM)
 tribs <- combine_east_and_south_fork(tribs_list = tribs)
