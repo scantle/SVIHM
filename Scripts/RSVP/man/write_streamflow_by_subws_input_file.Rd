@@ -10,6 +10,7 @@ write_streamflow_by_subws_input_file(
   output_dir,
   start_date,
   end_date,
+  monthly = T,
   filename = "streamflow_input.txt",
   verbose = TRUE
 )
