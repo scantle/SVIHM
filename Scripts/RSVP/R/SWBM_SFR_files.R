@@ -17,11 +17,13 @@
 #' @export
 #'
 #' @examples
-gen_monthly_sfr_flow_partition <- function(model_start_date,
+gen_sfr_flow_partition <- function(model_start_date,
                                      model_end_date,
                                      update_dir,
+                                     monthly=T,
+                                     streamflow_records_file = "streamflow_records_regressed.txt",
                                      unchanging_partition = F) {
-  model_months = seq(from = model_start_date, to = model_end_date, by = "months")
+  model_dates = seq(from = model_start_date, to = model_end_date, by = ifelse(monthly, "months","days"))
 
   if(unchanging_partition){
     # Hard-coded SFR partition. Uses average overall values.
@@ -47,14 +49,14 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
                                    # partition = c(1, 1, 0.5, 0.5, 1, 1, # if we made each record a subwatershed
                                                  # 1, 1, 1,   1,   1, 1))
     # generate SFR_subws_flow_partitioning.txt
-    sfr_part_tab = data.frame(modelMonth = model_months)
+    sfr_part_tab = data.frame(modelDate = model_dates)
     for(i in 1:nrow(sfr_unchang_part)){
       # Make a new column named for the tributary.
       # Assign the uniform partition values for the full model period
       sfr_part_tab[,sfr_unchang_part$inflow_seg_name[i]] = sfr_unchang_part$partition[i]
     }
   } else { # calculate partitioning based on stream records
-    stream_tab = read.table(file = file.path(update_dir,"streamflow_records_regressed.txt"), header=T)
+    stream_tab = read.table(file = file.path(update_dir,streamflow_records_file), header=T)
     inflow_segs = read.table(file = file.path( data_dir["time_indep_dir",'loc'], "SFR_inflow_segments.txt"),
                              comment.char = "!", header = T, row.names = NULL, sep = "\t")
     n_subws = length(unique(inflow_segs$subws_ID))# number of subwatersheds
@@ -66,12 +68,12 @@ gen_monthly_sfr_flow_partition <- function(model_start_date,
     inflow_segs$stream_tab_colname = paste0(stream_tab_colname, "_Avg_Flow_m3day")
 
     #Initialize monthly partition table
-    sfr_part_tab = data.frame(modelMonth = model_months)
+    sfr_part_tab = data.frame(modelDate = model_dates)
     sfr_part_matrix = matrix(data = NA, nrow = nrow(sfr_part_tab), ncol = ncol(stream_tab))
     sfr_part_tab = cbind(sfr_part_tab, sfr_part_matrix)
     colnames(sfr_part_tab)[2:ncol(sfr_part_tab)] = inflow_segs$stream_name
 
-    for(i in 1:nrow(sfr_part_tab)){ # for each month
+    for(i in 1:nrow(sfr_part_tab)){ # for each date
       for(j in 1:n_subws){ # for each subwatershed
         # identify inflow segment names
         tribs_in_subws = inflow_segs$stream_name[inflow_segs$subws_ID==j]

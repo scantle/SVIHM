@@ -245,7 +245,7 @@ write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, ver
   if (verbose) {message(paste('Writing SWBM SFR Handling file: ', filename))}
 
   # if(filename=="SFR_subws_flow_partitioning.txt"){
-    sfr_component$modelMonth <- as.character(format(x = sfr_component$modelMonth, format= '%b-%Y'))
+    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
 
     write.table(sfr_component,
                 file = file.path(output_dir, filename),

@@ -526,10 +526,10 @@ write_trib_file_for_partitioning <- function(gauges,
   outdf <- do.call(cbind, outdf)
 
   # A dumb fix for trying to be too clever
-  names(outdf)[1:2] <- c('Month', 'Scott_River_Avg_Flow_m3day')
+  names(outdf)[1:2] <- c(ifelse(monthly,'Month','Day'), 'Scott_River_Avg_Flow_m3day')
 
   # Arrange like original
-  outdf <- outdf[,c("Month",
+  outdf <- outdf[,c(ifelse(monthly,'Month','Day'),
                     "Scott_River_Avg_Flow_m3day",
                     "Sugar_Avg_Flow_m3day", "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day", "Johnson_Avg_Flow_m3day",
@@ -651,7 +651,7 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
 
 
   # Initialize output dataframe
-  outdf = data.frame(Month = all_tribs_df$Month)
+  outdf = all_tribs_df[1]
   outdf = cbind(outdf, matrix(data = NA, nrow = nrow(outdf), ncol = n_subws))
   colnames(outdf)[2:ncol(outdf)] = paste0(subws_names_df$subws_name,"_Avg_Flow_m3day")
 
@@ -678,7 +678,7 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
   }
 
   # Arrange like original
-  outdf <- outdf[,c("Month",
+  outdf <- outdf[,c(ifelse(monthly,"Month","Day"),
                     "Scott_River_Avg_Flow_m3day",
                     "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day",
