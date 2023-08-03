@@ -146,6 +146,7 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        nMuniWells = 0,
                                        nSubws = 8,
                                        inflow_is_vol = FALSE,
+                                       daily_sw = TRUE,
                                        nSFR_inflow_segs = 12,
                                        nrows = 440,
                                        ncols = 210,
@@ -153,6 +154,7 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        calib_software = "UCODE",
                                        using_neighbor_irr_rule = TRUE,
                                        scenario_id = "basecase",
+                                       irr_ditch_file = 'irr_ditch.txt',
                                        verbose=TRUE) {
 
 
@@ -160,13 +162,14 @@ write_SWBM_gen_inputs_file <- function(output_dir,
     paste(modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws,
           "! modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws",
           sep = "  "),
-    paste(inflow_is_vol, nSFR_inflow_segs, num_stress_periods, nrows, ncols,
-          "! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols",
+    paste(inflow_is_vol, daily_sw, nSFR_inflow_segs, num_stress_periods, nrows, ncols,
+          "! inflow_is_vol, daily_sw, nSFR_inflow_segs, nmonths, nrows, ncols",
           sep = "  "),
     paste(RD_Mult, calib_software, "! RD_Mult, UCODE/PEST",
           sep = "  "),
     paste(using_neighbor_irr_rule, "! using_neighbor_irr_rule (do farmers look to neighbor behavior for irrigation onset [TRUE] or only own field's soil moisture [FALSE])",
           sep = "  "),
+    paste('irr_ditch.txt', '           ! Irrigation Ditch Module Input File'),
     paste(scenario_id, "!scenario_id (used only in postprocessing)"))
 
 
@@ -244,12 +247,21 @@ write_SWBM_crop_coefficient_file <- function(kc_df, output_dir, filename, verbos
 write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, verbose=TRUE) {
   if (verbose) {message(paste('Writing SWBM SFR Handling file: ', filename))}
 
-  # if(filename=="SFR_subws_flow_partitioning.txt"){
-    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
+  # see if daily
+  daily = FALSE
+  if (mean(diff.Date(sfr_component[,1]))) { daily = TRUE }
 
-    write.table(sfr_component,
-                file = file.path(output_dir, filename),
-                sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+  # if(filename=="SFR_subws_flow_partitioning.txt"){
+  if (daily) {
+    # Really no reformat necessary
+    #sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%d-%b-%Y'))
+  } else {
+    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
+  }
+
+  write.table(sfr_component,
+              file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
   # }
 

@@ -104,7 +104,7 @@ gen_sfr_flow_partition <- function(model_start_date,
 
 #-------------------------------------------------------------------------------------------------#
 
-#' Process Monthly SFR Irrigation Inflows
+#' Process SFR Irrigation Inflows
 #'
 #' Generates table of monthly stream inflow volumes that are either available for irrigation
 #' purposes or are unavailable for irrigation (i.e., flows reserved for environmental uses).
@@ -125,18 +125,17 @@ gen_sfr_flow_partition <- function(model_start_date,
 #' @export
 #'
 #' @examples
-process_monthly_sfr_inflows <- function(model_start_date,
+process_sfr_inflows <- function(model_start_date,
                                     model_end_date,
                                     scenario_id,
                                     stream_inflow_filename,
                                     avail_for_irr = T,
                                     instream_flow_regime = NA) {
 
-  model_months = seq(from = model_start_date, to = model_end_date, by = "months")
-
   # Read tributary streamflow inputs from file
   subws_inflow = read.table(stream_inflow_filename, header = T)
-  colnames(subws_inflow)[colnames(subws_inflow) == "Month"] = "modelMonth"
+  #colnames(subws_inflow)[colnames(subws_inflow) == "Date"] = "modelDate"
+  subws_inflow[,1] <- as.Date(subws_inflow[,1])
 
   if(avail_for_irr){ # If writing the subwatershed_irrigation_inflows.txt file
     # If no instream flow regime available, make all inflows available for irrigation

@@ -40,10 +40,10 @@ gen_daily_binary_crop_coefficients <- function(model_start_date,
   ] = kc_dormant
 
   # Change 8 specific dates to match legacy input
-  legacy_0_kc_dates = as.Date(c("1996-11-14","1997-11-14","2004-11-14", "2005-11-14"))
-  legacy_0.9_kc_dates = as.Date(c("1997-02-28","1998-02-28","2005-02-28", "2006-02-28"))
-  kc_days[model_days %in% legacy_0_kc_dates] = 0
-  kc_days[model_days %in% legacy_0.9_kc_dates] = 0.9
+  #legacy_0_kc_dates = as.Date(c("1996-11-14","1997-11-14","2004-11-14", "2005-11-14"))
+  #legacy_0.9_kc_dates = as.Date(c("1997-02-28","1998-02-28","2005-02-28", "2006-02-28"))
+  #kc_days[model_days %in% legacy_0_kc_dates] = 0
+  #kc_days[model_days %in% legacy_0.9_kc_dates] = 0.9
 
   #Pad single-digit month, day values with 0s (e.g. "2" becomes "02"), then concatenate date strings
   kc_df = data.frame(Date=model_days, kc=kc_days)

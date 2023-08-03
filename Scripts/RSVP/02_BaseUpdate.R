@@ -13,7 +13,7 @@ end_year   <- as.numeric(format(Sys.Date(), "%Y"))  # Assumes current year
 update_dir <- latest_dir(data_dir['update_dir','loc'])
 
 # Scenario selection
-current_scenario = "curtail_00_pct_all_years" # default is "basecase". Affects a variety of input files.
+current_scenario = "basecase" # default is "basecase". Affects a variety of input files.
 
 # Current coded-up scenario names:
 # "basecase"
@@ -31,7 +31,7 @@ forecast_2023_curtail = c("basecase_2023.06.05_curtail_00_pct_2023",
 # Temporal discretization -------------------------------------------------------------------------
 
 model_start_date <- get_model_start(start_year)
-model_end_date <- as.Date(basename(update_dir))
+model_end_date <- as.Date(basename(update_dir))-1
 
 # For June 2023 attempts at forecasting the impact of 2023 curtailment:
 if(current_scenario %in% forecast_2023_curtail){model_end_date <- as.Date('2023-12-31')}
@@ -58,13 +58,14 @@ fjd$Date <- as.Date(fjd$Date)
 #                                               fort_jones_flows = fjd)
 
 
-sfr_subws_flow_partitioning <- gen_monthly_sfr_flow_partition(model_start_date, model_end_date, update_dir)
-subws_inflow_filename = file.path(update_dir,"streamflow_input.txt")
-subws_irr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_date,
+sfr_subws_flow_partitioning <- gen_sfr_flow_partition(model_start_date, model_end_date, update_dir, monthly=F,
+                                                              streamflow_records_file="daily_streamflow_records_regressed.txt")
+subws_inflow_filename = file.path(update_dir,"daily_streamflow_input.txt")
+subws_irr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
                                              stream_inflow_filename = subws_inflow_filename,
                                              avail_for_irr = T,
                                              scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
-subws_nonirr_inflows <- process_monthly_sfr_inflows(model_start_date, model_end_date,
+subws_nonirr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
                                                     stream_inflow_filename = subws_inflow_filename,
                                                     avail_for_irr = F,
                                                     scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
@@ -130,7 +131,7 @@ update_DRN_stress_periods(num_stress_periods, output_dir = update_dir)
 write_SVIHM_head_obs_file(model_start_date, model_end_date, output_dir = update_dir)
 
 # Output Control (OC)
-update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
+update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir, monthly=F)
 
 # ------------------------------------------------------------------------------------------------#
 
