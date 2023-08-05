@@ -5,7 +5,7 @@
 \title{Build Field-value Data Frame}
 \usage{
 swbm_build_field_value_df(
-  nfields,
+  nfields = 2119,
   model_start_date,
   model_end_date,
   default_values = NA

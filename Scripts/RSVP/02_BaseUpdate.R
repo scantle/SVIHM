@@ -70,6 +70,16 @@ subws_nonirr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
                                                     avail_for_irr = F,
                                                     scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
 
+# A bit of a hack to enforce SW curtailments (also in curtailment file, but with slightly different dates for GW)
+
+# 2021
+subws_nonirr_inflows <- move_inflows(subws_nonirr_inflows, subws_irr_inflows, date_start = '2021-09-10', date_end = '2021-10-25')
+subws_irr_inflows <- set_inflows(subws_irr_inflows, date_start = '2021-09-10', date_end = '2021-10-25', value = 0.0)
+
+# 2022
+subws_nonirr_inflows <- move_inflows(subws_nonirr_inflows, subws_irr_inflows, date_start = '2022-07-01', date_end = '2022-12-27')
+subws_irr_inflows <- set_inflows(subws_irr_inflows, date_start = '2022-07-01', date_end = '2022-12-27', value = 0.0)
+
 # Write SWBM Inputs -------------------------------------------------------
 
 # Main input file

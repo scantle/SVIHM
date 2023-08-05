@@ -337,7 +337,7 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
 #'
 #' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_lu)
 #'
-swbm_build_field_value_df <- function(nfields, model_start_date, model_end_date, default_values=NA) {
+swbm_build_field_value_df <- function(nfields=2119, model_start_date, model_end_date, default_values=NA) {
 
   # Define Stress Periods & IDs
   vect_sp <- seq.Date(model_start_date, model_end_date, by='month')

@@ -163,4 +163,55 @@ process_sfr_inflows <- function(model_start_date,
   return(sfr_inflow_tab)
 }
 
+#-------------------------------------------------------------------------------------------------#
 
+#' Move inflows from one dataframe to another
+#'
+#' @param inflow_to
+#' @param inflow_from
+#' @param date_start inclusive
+#' @param date_end inclusive
+#' @param streams
+#'
+#' @return
+#' @export
+#'
+#' @examples
+move_inflows <- function(inflow_to, inflow_from, date_start, date_end, streams='ALL') {
+  # Parse column selection
+  if (streams == 'ALL') {
+    streams <- colnames(inflow_to)[2:length(colnames(inflow_to))]
+  }
+
+  # Move inflows
+  inflow_to[inflow_to[,1] >= as.Date(date_start) & inflow_to[,1] <= as.Date(date_end), streams] =
+    inflow_from[inflow_from[,1] >= as.Date(date_start) & inflow_from[,1] <= as.Date(date_end), streams]
+
+  return(inflow_to)
+
+}
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Set inflows between dates to specified value
+#'
+#' @param inflow_df
+#' @param date_start inclusive
+#' @param date_end inclusive
+#' @param value
+#' @param streams
+#'
+#' @return
+#' @export
+#'
+#' @examples
+set_inflows <- function(inflow_df, date_start, date_end, value, streams='ALL') {
+  # Parse column selection
+  if (streams == 'ALL') {
+    streams <- colnames(inflow_df)[2:length(colnames(inflow_df))]
+  }
+
+  inflow_df[inflow_df[,1] >= as.Date(date_start) & inflow_df[,1] <= as.Date(date_end), streams] = value
+
+  return(inflow_df)
+}
