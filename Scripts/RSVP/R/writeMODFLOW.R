@@ -106,6 +106,47 @@ update_DRN_stress_periods <- function(num_stress_periods,
 
 #-------------------------------------------------------------------------------------------------#
 
+update_DRNO_stress_periods <- function(num_stress_periods,
+                                       output_dir,
+                                       filename='SVIHM.drno',
+                                       default_drn_value = 10000.0,
+                                       ref_data_dir = data_dir['ref_data_dir','loc'],
+                                       verbose = TRUE) {
+  #-- Read in DRNO reference - essentially the DRN package matched to nearby SFR reaches
+  cells <- read.table(file.path(ref_data_dir,"drno_cells.txt"), header = T)
+
+  #-- Correct conductance with value passed to function
+  if (!is.na(default_drn_value)){
+    cells$conductance <- default_drn_value
+  }
+
+  #-- Assemble output file location
+  f <- file.path(output_dir, filename)
+
+  #-- Write DRNO Header
+  if (verbose) {message(paste('Writing SVIHM DRNO file: ', f))}
+  write('# MODFLOW Drain Overland Flow (DRNO) Package - written by RSVP', file = f, append = F)
+  write('          2869        50   NOPRINT', file = f, append = T)
+
+  #Specify DZ for each stress period
+  for (i in 1:num_stress_periods){
+    if (i==1) {
+      # Write SP line
+      write(paste('     2869       0          Stress Period', i), file = f, append=T)
+      #Define DZ - layer, row, column, elevation, and conductance for each cell with a drain in it
+      cat(sprintf("%4i%6i%6i%10.2f%12.3e%6i%6i\n",
+                  cells[,1],cells[,2],cells[,3],cells[,4],cells[,5],cells[,6],cells[,7]),
+          file = f, append = T)
+    } else {
+      # Write SP repeat line
+      write(paste('     -1         1          Stress Period', i), file = f, append=T)
+    }
+  }
+
+}
+
+#-------------------------------------------------------------------------------------------------#
+
 #' Write SVIHM Head Observation (HOBS) File
 #'
 #' TODO: Accept data as arguments? Automate new data download?

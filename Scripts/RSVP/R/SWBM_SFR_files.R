@@ -1,3 +1,5 @@
+#
+# SFR network file (read by SWBM) writing function is located in writeSWBMInputs.R
 #-------------------------------------------------------------------------------------------------#
 
 #' Generate Monthly SFR Inflow Partition

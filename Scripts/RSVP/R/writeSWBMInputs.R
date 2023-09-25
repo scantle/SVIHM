@@ -1333,4 +1333,34 @@ write_daily_crop_coeff_values_file = function(model_start_date, model_end_date, 
               sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
   }
 
+# ------------------------------------------------------------------------------------------------#
 
+#' Write SWBM SFR Network File
+#'
+#' Writes the file that essentially gets used as the SFR package template in the SWBM. Has support
+#' for including daily tabfiles.
+#'
+#' @param nsteps Total number of MODFLOW time steps (i.e. days in model) to be found in tab files
+#' @param output_dir directory to write the files to
+#' @param filename output filename (default: sfr_network.txt)
+#' @param daily T/F if using daily time steps in SFR (i.e., tabfiles) (default: FALSE)
+#' @param ntabfiles if daily, the number of tabfiles to be read by MODFLOW (default: 30)
+#' @param comment SFR file comment printed at top of file (default: 'SFR Package written by RSVP')
+#'
+#' @return none; writes file
+#' @export
+#'
+#' @examples
+write_sfr_network_file <- function(nsteps, output_dir, filename='SFR_network.txt', daily=FALSE,
+                                   ntabfiles=30,
+                                   comment='SFR Package written by RSVP') {
+  f <- file.path(output_dir, filename)
+  write(paste('#', comment, ifelse(daily, '- tabfile version -','-'), format(now(), '%Y-%m-%d')), f, append=F)
+  if (daily) {
+    write(paste('TABFILES', ntabfiles, nsteps), f, append=T)
+  }
+
+  # From here it's just copy paste
+  sfr <- readLines(file.path(data_dir['ref_data_dir','loc'], 'SFR_network_template.txt'))
+  writeLines(sfr,f)
+}

@@ -106,7 +106,7 @@ write_daily_crop_coeff_values_file(model_start_date, model_end_date, update_dir)
 write_SWBM_SFR_inflow_files(sfr_subws_flow_partitioning, update_dir, "SFR_subws_flow_partitioning.txt")
 write_SWBM_SFR_inflow_files(subws_irr_inflows, update_dir, "subwatershed_irrigation_inflows.txt")
 write_SWBM_SFR_inflow_files(subws_nonirr_inflows, update_dir, "subwatershed_nonirrigation_inflows.txt")
-write_SWBM_SFR_diversions_file(output_dir = update_dir)
+write_SWBM_SFR_diversions_file(output_dir = update_dir, num_divs = 0)  # Using SWBM irr ditch capability instead
 
 # Specified pumping data (if available)
 write_ag_pumping_file(start_date = model_start_date, n_stress = num_stress_periods,
@@ -125,7 +125,8 @@ write_SWBM_curtailment_file(scenario_id = current_scenario,
                             output_dir = update_dir,
                             start_date = model_start_date,
                             end_date = model_end_date)
-
+# SFR Network file (requires total time steps)
+write_sfr_network_file(nsteps = sum(num_days), output_dir = update_dir, daily = TRUE)
 
 # ------------------------------------------------------------------------------------------------#
 

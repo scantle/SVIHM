@@ -19,11 +19,10 @@ create_sp_charts = FALSE  # Many SPs, very slow
 
 # Directories
 run_dir <- file.path('../../Run/')
-run_dir = file.path("../../Scenarios/basecase_2023.06.05_curtail_50_pct_2023")
 swbm_dir = file.path(run_dir, 'SWBM')
 mf_dir <- file.path(run_dir, 'MODFLOW')
-# TODO automate finding latest version
-update_dir <- latest_dir(data_dir['update_dir','loc'])  #file.path('../../SVIHM_Input_Files/Updates/2022-04-13/')
+
+update_dir <- latest_dir(data_dir['update_dir','loc'])
 plot_data_dir = file.path('../../SVIHM_Input_Files/reference_data_for_plots/')
 
 
