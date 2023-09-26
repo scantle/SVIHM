@@ -62,15 +62,15 @@ sfr_subws_flow_partitioning <- gen_sfr_flow_partition(model_start_date, model_en
                                                               streamflow_records_file="daily_streamflow_records_regressed.txt")
 subws_inflow_filename = file.path(update_dir,"daily_streamflow_input.txt")
 subws_irr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
-                                             stream_inflow_filename = subws_inflow_filename,
-                                             avail_for_irr = T,
-                                             scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
+                                         stream_inflow_filename = subws_inflow_filename,
+                                         avail_for_irr = T,
+                                         scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
 subws_nonirr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
-                                                    stream_inflow_filename = subws_inflow_filename,
-                                                    avail_for_irr = F,
-                                                    scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
+                                            stream_inflow_filename = subws_inflow_filename,
+                                            avail_for_irr = F,
+                                            scenario_id = current_scenario) # Possibly divide flow into avail and unavail for irr based on flow regime
 
-# A bit of a hack to enforce SW curtailments (also in curtailment file, but with slightly different dates for GW)
+# Move water to non-irr to enforce SW curtailments (also in curtailment file, but with slightly different dates for GW)
 
 # 2021
 subws_nonirr_inflows <- move_inflows(subws_nonirr_inflows, subws_irr_inflows, date_start = '2021-09-10', date_end = '2021-10-25')
@@ -136,7 +136,7 @@ write_sfr_network_file(nsteps = sum(num_days), output_dir = update_dir, daily = 
 update_DIS_stress_periods(num_days, num_stress_periods, output_dir = update_dir)
 
 # Drain (DRN)
-update_DRN_stress_periods(num_stress_periods, output_dir = update_dir)
+update_DRNO_stress_periods(num_stress_periods, output_dir = update_dir)
 
 # Head Observations (HOB)
 write_SVIHM_head_obs_file(model_start_date, model_end_date, output_dir = update_dir)
@@ -158,5 +158,6 @@ update_OC_stress_periods(num_days, num_stress_periods, output_dir = update_dir, 
 write_update_prep_batchfile(update_dir = update_dir,
                             scenario_name = current_scenario)
 
+#TODO - Have function that ensures all necessary files are in the updates folder
 
 

@@ -1362,5 +1362,5 @@ write_sfr_network_file <- function(nsteps, output_dir, filename='SFR_network.txt
 
   # From here it's just copy paste
   sfr <- readLines(file.path(data_dir['ref_data_dir','loc'], 'SFR_network_template.txt'))
-  writeLines(sfr,f)
+  write(sfr,f, append=ifelse(daily,T,F))
 }
