@@ -728,9 +728,17 @@ write_SWBM_MAR_depth_file <- function(scenario_id = "basecase",
 
 # ------------------------------------------------------------------------------------------------#
 
-#' Write file specifying Managed Aquifer Recharge (applied irrigation) volumes for each field, for each stress period
+#' Write file specifying water use curtailment fractions in 2022 and 2021 (relative to calculated
+#' water demand) and 2023 (in some scenarios for the 2023 growing season).
 #'
-#' @param scenario_name Name of  management scenario. Default is historical basecase or "basecase".
+#' @param scenario_id Name of  management scenario. Default is historical basecase or "basecase".
+#' @param output_dir Directory to save the curtailment fractions in a text file (month-by-field table structure).
+#' @param start_date Model period start date
+#' @param end_date Model period end date
+#' @param apn_overlap_threshold Rule for including fields in an LCS application associated with specific APNs.
+#' If overlap > threshold fraction of field area, it is included in the LCS application. Default 0.5.
+#' @param exclude_terrible_and_major_overflow_polygons Whether to include artefact polygons that are extremely complex or only overlap a very small amount with LCS fields. Default FALSE.
+#' @param curtail_100_pct_non_lcs_fields Whether to impose 100% water curtailment for fields NOT participating in LCS in 2022 (and 2023 curtail scenarios).
 #'
 #' @return none, saves MAR_volumes.txt
 #' @export
