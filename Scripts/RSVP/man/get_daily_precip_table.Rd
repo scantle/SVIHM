@@ -8,6 +8,7 @@ get_daily_precip_table(
   start_date,
   end_date,
   ref_data_dir = data_dir["ref_data_dir", "loc"],
+  na_fill = "average",
   verbose = TRUE
 )
 }
@@ -18,6 +19,9 @@ get_daily_precip_table(
 
 \item{ref_data_dir}{Reference data directory
 (optional, default: SVIHM/SVIHM_Input_Files/reference_data)}
+
+\item{na_fill}{string of NA filling behavior, 'average' for averages of the preceding and next-day-with-data values,
+pass a numeric value to fill NA with that value, or NA for no filling (default: 'average')}
 
 \item{verbose}{T/F write status info to console (default: TRUE)}
 }

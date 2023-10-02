@@ -16,6 +16,7 @@ write_SWBM_gen_inputs_file(
   nMuniWells = 0,
   nSubws = 8,
   inflow_is_vol = FALSE,
+  daily_sw = TRUE,
   nSFR_inflow_segs = 12,
   nrows = 440,
   ncols = 210,
@@ -23,6 +24,7 @@ write_SWBM_gen_inputs_file(
   calib_software = "UCODE",
   using_neighbor_irr_rule = TRUE,
   scenario_id = "basecase",
+  irr_ditch_file = "irr_ditch.txt",
   verbose = TRUE
 )
 }

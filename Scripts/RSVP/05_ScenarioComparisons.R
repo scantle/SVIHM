@@ -541,10 +541,10 @@ lines(x = fjsim4$Date, y = fjsim4$Flow_cfs, col = "goldenrod", lwd = 2)
 lines(x = curtail_flows_line$dates, y = curtail_flows_line$flow_cfs, lwd = 2, lty = 2, col = "blue")
 lines(x = fj_dummy_flow$Date, y = fj_dummy_flow$Flow, lty = 2)
 
-axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"),
-     labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), format = "%b-%y"),
-     crt = 45)
-abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), lty = 2, col = "gray")
+# axis(side = 1, at = seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"),
+#      labels = strftime(seq.Date(from = date_lims[1], to = date_lims[2], by = "3 months"), format = "%b-%y"),
+#      crt = 45)
+abline(v = seq.Date(from = date_lims[1], to = date_lims[2], by = "months"), lty = 2, col = "gray")
 # abline(h = seq(from = 0, by = 50, length.out = 10), lty = 2, col = "gray")
 abline(h = (10^c(0,1,2,3,4)), lty = 2, col = "gray")
 axis(side = 2, 10^c(0,1,2,3,4))
@@ -560,8 +560,8 @@ legend_tab = data.frame(descrip = c("FJ Historical Obs.", "FJ Flow, 2019 Obs.",
                         lty = c(1,2,1,1,1,2))
 
 
-legend(x = "bottomright", legend = legend_tab$descrip, lty = legend_tab$lty,
-       col = legend_tab$color, lwd = 2,  cex = .7, ncol=2)#, horiz=T)
+legend(x = "bottomleft", legend = legend_tab$descrip, lty = legend_tab$lty,
+       col = legend_tab$color, lwd = 2,  cex = .6, ncol=2)#, horiz=T)
 
 dev.off()
 

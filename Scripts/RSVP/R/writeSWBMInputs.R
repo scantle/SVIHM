@@ -146,6 +146,7 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        nMuniWells = 0,
                                        nSubws = 8,
                                        inflow_is_vol = FALSE,
+                                       daily_sw = TRUE,
                                        nSFR_inflow_segs = 12,
                                        nrows = 440,
                                        ncols = 210,
@@ -153,6 +154,7 @@ write_SWBM_gen_inputs_file <- function(output_dir,
                                        calib_software = "UCODE",
                                        using_neighbor_irr_rule = TRUE,
                                        scenario_id = "basecase",
+                                       irr_ditch_file = 'irr_ditch.txt',
                                        verbose=TRUE) {
 
 
@@ -160,13 +162,14 @@ write_SWBM_gen_inputs_file <- function(output_dir,
     paste(modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws,
           "! modelName, WYstart, npoly, nlandcover, nAgWells, nMuniWells, nSubws",
           sep = "  "),
-    paste(inflow_is_vol, nSFR_inflow_segs, num_stress_periods, nrows, ncols,
-          "! inflow_is_vol, nSFR_inflow_segs, nmonths, nrows, ncols",
+    paste(inflow_is_vol, daily_sw, nSFR_inflow_segs, num_stress_periods, nrows, ncols,
+          "! inflow_is_vol, daily_sw, nSFR_inflow_segs, nmonths, nrows, ncols",
           sep = "  "),
     paste(RD_Mult, calib_software, "! RD_Mult, UCODE/PEST",
           sep = "  "),
     paste(using_neighbor_irr_rule, "! using_neighbor_irr_rule (do farmers look to neighbor behavior for irrigation onset [TRUE] or only own field's soil moisture [FALSE])",
           sep = "  "),
+    paste('irr_ditch.txt', '           ! Irrigation Ditch Module Input File'),
     paste(scenario_id, "!scenario_id (used only in postprocessing)"))
 
 
@@ -244,12 +247,21 @@ write_SWBM_crop_coefficient_file <- function(kc_df, output_dir, filename, verbos
 write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, verbose=TRUE) {
   if (verbose) {message(paste('Writing SWBM SFR Handling file: ', filename))}
 
-  # if(filename=="SFR_subws_flow_partitioning.txt"){
-    sfr_component$modelMonth <- as.character(format(x = sfr_component$modelMonth, format= '%b-%Y'))
+  # see if daily
+  daily = FALSE
+  if (mean(diff.Date(sfr_component[,1]))) { daily = TRUE }
 
-    write.table(sfr_component,
-                file = file.path(output_dir, filename),
-                sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
+  # if(filename=="SFR_subws_flow_partitioning.txt"){
+  if (daily) {
+    # Really no reformat necessary
+    #sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%d-%b-%Y'))
+  } else {
+    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
+  }
+
+  write.table(sfr_component,
+              file = file.path(output_dir, filename),
+              sep = " ", quote = FALSE, col.names = TRUE, row.names = FALSE)
 
   # }
 
@@ -325,7 +337,7 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
 #'
 #' lu_df <- swbm_build_field_value_df(nfields, start_date, end_date, default_lu)
 #'
-swbm_build_field_value_df <- function(nfields, model_start_date, model_end_date, default_values=NA) {
+swbm_build_field_value_df <- function(nfields=2119, model_start_date, model_end_date, default_values=NA) {
 
   # Define Stress Periods & IDs
   vect_sp <- seq.Date(model_start_date, model_end_date, by='month')
@@ -1017,7 +1029,7 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     non_lcs_fields = rbind(non_lcs_fields, fields_0)
     non_lcs_field_ids = non_lcs_fields$Poly_nmbr
     # curtail 100% of all water use on non-lcs fields
-    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model_nonlcs_0.5] = 0.5
+    summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model_nonlcs_0.5] = (17/31) #0.5
     summary_tab_22[summary_tab_22$swbm_id %in% non_lcs_field_ids, conserv_for_model_nonlcs_1.0] = 1.0
 
     # _Produce: month-by-field curtailment fraction tables for historical basecase ---------------------------------------------
@@ -1063,18 +1075,19 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
     }
 
     ## _2021 data -------------------------------------------------------
-    # Make new summary tab including only the fields that did curtailments in Sep-Oct 2021
+    # Make new summary tab including only the fields that did curtailments in Aug-Oct 2021
     lcs_apps_21 = c(12, 13, 31) # Fawaz, Finley, Menne: 12, 13, 31
-    conserv_for_model_21 = paste0(month.abb[9:10],"_pct_cons_model")
+    conserv_for_model_21 = paste0(month.abb[8:10],"_pct_cons_model")
     summary_tab_21 = summary_tab_22[, c("swbm_id", "curtail_app_id", conserv_for_model_21)]
     summary_tab_21[,conserv_for_model_21] = 0
     summary_tab_21[summary_tab_21$curtail_app_id %in% lcs_apps_21, conserv_for_model_21] = 1
 
     # match months to stress periods
-    conserv_2021_month_dates = as.Date(paste0("2021-",9:10,"-01"))
+    conserv_2021_month_dates = as.Date(paste0("2021-",8:10,"-01"))
     date_matcher_tab_21 = data.frame(stress_per_date = conserv_2021_month_dates,
-                                     curtail_colname = paste0(month.abb[9:10],"_pct_cons_model"))
+                                     curtail_colname = paste0(month.abb[8:10],"_pct_cons_model"))
 
+    # Assign LCS
     for(i in 1:nrow(date_matcher_tab_21)){
       sp = date_matcher_tab_21$stress_per_date[i]
       cname = date_matcher_tab_21$curtail_colname[i]
@@ -1083,6 +1096,39 @@ write_SWBM_curtailment_file <- function(scenario_id = "basecase",
         summary_tab_21[match(swbm_ids, summary_tab_21$swbm_id),cname]
     }
 
+    # 2021 Part 2
+    # GW curtailed for whole valley from Sept 10 - Oct 25
+    conserv_for_model_0921 = paste0(month.abb[9], "_pct_cons_model")
+    conserv_for_model_1021 = paste0(month.abb[10], "_pct_cons_model")
+    curt_2021_sept = as.Date(paste0("2021-",10,"-01"))
+    curt_2021_oct = as.Date(paste0("2021-", 9,"-01"))
+    # Apply to all fields NOT n the lcs_apps_21
+    summary_tab_21[!(summary_tab_21$curtail_app_id %in% lcs_apps_21), conserv_for_model_0921] = 2/3 # 20 of 30 days
+    summary_tab_21[!(summary_tab_21$curtail_app_id %in% lcs_apps_21), conserv_for_model_1021] = 25/31
+
+    # Date matchers
+    date_matcher_tab_sept21 = data.frame(stress_per_date = curt_2021_sept,
+                                         curtail_colname = conserv_for_model_0921)
+    date_matcher_tab_oct21 = data.frame(stress_per_date = curt_2021_oct,
+                                        curtail_colname = conserv_for_model_1021)
+
+    # Assign curtailments for Sept 2021
+    for(i in 1:nrow(date_matcher_tab_sept21)){
+      sp = date_matcher_tab_sept21$stress_per_date[i]
+      cname = date_matcher_tab_sept21$curtail_colname[i]
+      # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
+      curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
+        summary_tab_21[match(swbm_ids, summary_tab_21$swbm_id),cname]
+    }
+
+    # Assign curtailments for Oct 2021
+    for(i in 1:nrow(date_matcher_tab_oct21)){
+      sp = date_matcher_tab_oct21$stress_per_date[i]
+      cname = date_matcher_tab_oct21$curtail_colname[i]
+      # assign overlap- and acre-ratio- weighted curtailment fractions to each stress period
+      curtail_output[curtail_output$Stress_Period==sp, 2:ncol(curtail_output)] =
+        summary_tab_21[match(swbm_ids, summary_tab_21$swbm_id),cname]
+    }
 
     # Final table cleanup
     # Replace any NAs with 0s
@@ -1295,4 +1341,34 @@ write_daily_crop_coeff_values_file = function(model_start_date, model_end_date, 
               sep = "  ", quote = FALSE, col.names = TRUE, row.names = FALSE)
   }
 
+# ------------------------------------------------------------------------------------------------#
 
+#' Write SWBM SFR Network File
+#'
+#' Writes the file that essentially gets used as the SFR package template in the SWBM. Has support
+#' for including daily tabfiles.
+#'
+#' @param nsteps Total number of MODFLOW time steps (i.e. days in model) to be found in tab files
+#' @param output_dir directory to write the files to
+#' @param filename output filename (default: sfr_network.txt)
+#' @param daily T/F if using daily time steps in SFR (i.e., tabfiles) (default: FALSE)
+#' @param ntabfiles if daily, the number of tabfiles to be read by MODFLOW (default: 30)
+#' @param comment SFR file comment printed at top of file (default: 'SFR Package written by RSVP')
+#'
+#' @return none; writes file
+#' @export
+#'
+#' @examples
+write_sfr_network_file <- function(nsteps, output_dir, filename='SFR_network.txt', daily=FALSE,
+                                   ntabfiles=30,
+                                   comment='SFR Package written by RSVP') {
+  f <- file.path(output_dir, filename)
+  write(paste('#', comment, ifelse(daily, '- tabfile version -','-'), format(now(), '%Y-%m-%d')), f, append=F)
+  if (daily) {
+    write(paste('TABFILES', ntabfiles, nsteps), f, append=T)
+  }
+
+  # From here it's just copy paste
+  sfr <- readLines(file.path(data_dir['ref_data_dir','loc'], 'SFR_network_template.txt'))
+  write(sfr,f, append=ifelse(daily,T,F))
+}

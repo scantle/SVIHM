@@ -14,7 +14,6 @@ xcopy SVIHM_Input_Files\time_independent_input_files\system_commands.txt Run\SWB
 xcopy SVIHM_Input_Files\time_independent_input_files\ET_Zone_Cells.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\ET_Cells_Extinction_Depth.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\recharge_zones.txt Run\SWBM /Y /I
-xcopy SVIHM_Input_Files\time_independent_input_files\SFR_network.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\SFR_routing.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\SFR_inflow_segments.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\ag_well_summary.txt Run\SWBM /Y /I
@@ -27,20 +26,24 @@ xcopy SVIHM_Input_Files\time_independent_input_files\precip_factors.txt Run\SWBM
 xcopy SVIHM_Input_Files\time_independent_input_files\landcover_table.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\MAR_depth.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\curtailment_fractions.txt Run\SWBM /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\irr_ditch.txt Run\SWBM /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM.* Run\MODFLOW /Y /I
+xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_tabfiles.nam Run\MODFLOW\SVIHM.nam /Y /I
 xcopy SVIHM_Input_Files\time_independent_input_files\Starting_Heads_L*.txt Run\MODFLOW /Y /I
-
-:: Copy files from scenario folder to run folder
-xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
-xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I 
 xcopy SVIHM_Input_Files\time_independent_input_files\SVIHM_*_template.txt Run\SWBM /Y /I
+
+:: Copy files from scenario folder to run folder (in some cases, overwrite)
+xcopy Scenarios\%scen%\*.txt Run\SWBM /Y /I
+xcopy Scenarios\%scen%\*.zone Run\SWBM /Y /I
+xcopy Scenarios\%scen%\SVIHM.* Run\MODFLOW /Y /I
 
 :: Copy in generic run batch file
 xcopy Scripts\Batch_Scripts\Run_SVIHM.bat Run /Y /I
 
-:: Copy in Update_Drain_Inflows input file
-xcopy SVIHM_Input_Files\Update_Drain_Inflows.in Run\MODFLOW /Y /I
+:: Copy SFR Template File
+xcopy Calib_Sens_Files\UCODE\UCODE_Template_Files\SFR_network_jtf.txt Run\SWBM /Y /I
 
-:: Files of Unknown Necessity
-xcopy Calib_Sens_Files\UCODE\UCODE_Template_Files\SVIHM_SFR.jtf Run\SWBM /Y /I
-
+:: Report
+echo.
+echo Run folder populated with %scen%. Model can be run using Run\Run_SVIHM.bat
+pause

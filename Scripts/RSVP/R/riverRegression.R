@@ -9,6 +9,8 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
                                 fj_update = NULL,
                                 max_missing_days = 3,
                                 regression_cutoff_date = as.Date('2018-10-01'),
+                                monthly=TRUE,
+                                one_regression=TRUE,
                                 verbose = TRUE) {
 
   #-- Read in data
@@ -19,12 +21,11 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
     daily_all[[1]] <- assimilate_fj_update(daily_all[[1]], fj_update)
   }
 
-  #-- Convert to Monthly Data
-  mnthly_all <- lapply(daily_all, FUN=gauge_monthly_prep)
-
   #-- Prepare Data for regression, pre- and post- WY1973
-  preWY1973 <- lapply(mnthly_all, FUN=gauge_regression_prep, end_date = as.Date("1972/10/1"))
-  postWY1973 <- lapply(mnthly_all, FUN=gauge_regression_prep, start_date = as.Date("1972/10/1"),
+  prepd_all <- lapply(daily_all, FUN=gauge_prep, monthly=monthly)
+
+  preWY1973 <- lapply(prepd_all, FUN=gauge_regression_prep, end_date = as.Date("1972/10/1"))
+  postWY1973 <- lapply(prepd_all, FUN=gauge_regression_prep, start_date = as.Date("1972/10/1"),
                                                               end_date = regression_cutoff_date)
 
   #-- Copy over stats for gauges with no postWY1972 data and vice versa
@@ -36,34 +37,54 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
   postWY1973_FJ <- add_FJ_to_dflist(postWY1973)
 
   #-- Regress
-  # Current methodology combines them all into one regression...
-  rm.preWY1973  <- lm(normLogAF_trib ~ normLogAF_FJ, data = do.call(rbind, preWY1973_FJ))
-  rm.postWY1973 <- lm(normLogAF_trib ~ normLogAF_FJ, data = do.call(rbind, postWY1973_FJ))
 
-  # #-- Alternative: Regression individually...
-  # all.rm.preWY1973 <- lapply(preWY1973_FJ, function(x) {
-  #   if (nrow(x) > 0) {
-  #     rm <- lm(normLogAF_trib ~ normLogAF_FJ, data = x)
-  #   }
-  # })
+  if (one_regression) {
+    # Current methodology combines them all into one regression...
+    rm.preWY1973  <- lm(normLogAF_trib ~ normLogAF_FJ, data = do.call(rbind, preWY1973_FJ))
+    rm.postWY1973 <- lm(normLogAF_trib ~ normLogAF_FJ, data = do.call(rbind, postWY1973_FJ))
+  } else {
+    #-- Alternative: individually regress
+    rm.preWY1973 <- lapply(preWY1973_FJ, function(x) {
+      if (nrow(x) > 0) {
+        rm <- lm(normLogAF_trib ~ normLogAF_FJ, data = x)
+      }
+    })
+    #-- Alternative: Regression individually...
+    rm.postWY1973 <- lapply(postWY1973_FJ, function(x) {
+      if (nrow(x) > 0) {
+        rm <- lm(normLogAF_trib ~ normLogAF_FJ, data = x)
+      }
+    })
+  }
 
   #-- pRepare (Essentially need to add back any cutoff data, fill missing months with NAs)
-  preWY1973 <- mapply(gauge_regression_prep, mnthly_all, preWY1973, SIMPLIFY = F)
-  preWY1973 <- lapply(preWY1973, complete_monthly, start_date=min(daily_all[[1]]$Date),
-                      end_date=as.Date("1972/09/1"))  # inclusive
+
+  preWY1973 <- mapply(gauge_regression_prep, prepd_all, preWY1973, SIMPLIFY = F)
+  preWY1973 <- lapply(preWY1973, complete_ts,
+                      by=ifelse(monthly,'month','day'),
+                      start_date=min(daily_all[[1]]$Date),
+                      end_date=as.Date("1972/09/30"))  # inclusive
   preWY1973 <- add_FJ_to_dflist(preWY1973, all.x=T)
 
-  postWY1973 <- mapply(gauge_regression_prep, mnthly_all, postWY1973, SIMPLIFY = F)
-  postWY1973 <- lapply(postWY1973, complete_monthly, start_date=as.Date("1972/10/1"), end_date=end_date)
+  postWY1973 <- mapply(gauge_regression_prep, prepd_all, postWY1973, SIMPLIFY = F)
+  postWY1973 <- lapply(postWY1973, complete_ts,
+                       by=ifelse(monthly,'month','day'),
+                       start_date=as.Date("1972/10/1"),
+                       end_date=end_date)
   postWY1973 <- add_FJ_to_dflist(postWY1973, all.x=T)
 
   #-- pRedict
-  preWY1973_pred <- lapply(preWY1973, predict_and_destandardize, lm_object=rm.preWY1973)
-  postWY1973_pred <- lapply(postWY1973, predict_and_destandardize, lm_object=rm.postWY1973, lm_nodata=rm.preWY1973)
+  if (one_regression) {
+    preWY1973_pred <- lapply(preWY1973, predict_and_destandardize, lm_object=rm.preWY1973)
+    postWY1973_pred <- lapply(postWY1973, predict_and_destandardize, lm_object=rm.postWY1973, lm_nodata=rm.preWY1973)
+  } else {
+    preWY1973_pred <- mapply(predict_and_destandardize, preWY1973, rm.preWY1973, rm.postWY1973, SIMPLIFY = F)
+    postWY1973_pred <- mapply(predict_and_destandardize, postWY1973, rm.postWY1973, rm.preWY1973, SIMPLIFY = F)
+  }
 
   #-- Recombine
-  preWY1973_pred <- mapply(gauge_reg_obs_merge, preWY1973_pred, mnthly_all[2:length(mnthly_all)], SIMPLIFY = F)
-  postWY1973_pred <- mapply(gauge_reg_obs_merge, postWY1973_pred, mnthly_all[2:length(mnthly_all)], SIMPLIFY = F)
+  preWY1973_pred <- mapply(gauge_reg_obs_merge, preWY1973_pred, prepd_all[2:length(prepd_all)], SIMPLIFY = F)
+  postWY1973_pred <- mapply(gauge_reg_obs_merge, postWY1973_pred, prepd_all[2:length(prepd_all)], SIMPLIFY = F)
   combined <- mapply(rbind, preWY1973_pred, postWY1973_pred, SIMPLIFY = F)
 
   #-- Add in streams that are based on Patterson
@@ -205,6 +226,7 @@ assimilate_fj_update <- function(historical, fj_update) {
 
 #-------------------------------------------------------------------------------------------------#
 
+# Maybe this should be incorporated into gauge_regression_prep?
 #' Title
 #'
 #' @param df
@@ -216,21 +238,25 @@ assimilate_fj_update <- function(historical, fj_update) {
 #' @export
 #'
 #' @examples
-gauge_monthly_prep <- function(df, max_missing_days=3, value_col='AF', date_col='Date') {
+gauge_prep <- function(df, max_missing_days=3, value_col='AF', date_col='Date', monthly=TRUE) {
 
   # Drop NAs
   df <- df[!is.na(df[,value_col]),]
 
-  # Get monthly
-  mnthly <- resample2monthly(df = df, value_col=value_col, date_col = date_col,
-                             FUN=function(x) c(value_col=sum(x), count=length(x)))
-  # Missing days is (Total in Month - Count)
-  mnthly$missing <- lubridate::days_in_month(mnthly[,date_col]) - mnthly$count
+  # Replace zeros (or mysterious negative values) with a very small value
+  df[df[,value_col]<=0.0,value_col] <- 1e-5
 
-  mnthly <- mnthly[!mnthly$missing > max_missing_days, c(date_col, value_col)]
+  if (monthly) {
+    # Get monthly
+    mnthly <- resample2monthly(df = df, value_col=value_col, date_col = date_col,
+                               FUN=function(x) c(value_col=sum(x), count=length(x)))
+    # Missing days is (Total in Month - Count)
+    mnthly$missing <- lubridate::days_in_month(mnthly[,date_col]) - mnthly$count
 
-  return(mnthly)
+    df <- mnthly[!mnthly$missing > max_missing_days, c(date_col, value_col)]
 
+  }
+  return(df)
 }
 
 #-------------------------------------------------------------------------------------------------#
@@ -461,6 +487,7 @@ write_trib_file_for_partitioning <- function(gauges,
                                            start_date,
                                            end_date,
                                            old_tribs_df = NA,
+                                           monthly=T,
                                            filename='streamflow_records_regressed.txt',
                                            verbose=TRUE) {
 
@@ -475,22 +502,34 @@ write_trib_file_for_partitioning <- function(gauges,
     out <- subset.DateTwoSided(x, start_date, end_date, include_end=T)
     # Convert to m3/day and rename
     m3_col_name <- paste0(x$stream_name[[1]],'_Avg_Flow_m3day')  # Terrible legacy name
-    names(out)[names(out)=='Date'] <- 'Month'
-    out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
-    if (i == 1) {
-      # Date only for the first value
-      return(out[,c('Month',m3_col_name)])
+    if (monthly) {
+      names(out)[names(out)=='Date'] <- 'Month'
+      out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
+      if (i == 1) {
+        # Date only for the first value
+        return(out[,c('Month',m3_col_name)])
+      } else {
+        return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+      }
     } else {
-      return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+      # assume daily
+      names(out)[names(out)=='Date'] <- 'Day'
+      out[,m3_col_name] <- out$pred_AF * 1233.48 # AF/mon to m^3/day
+      if (i == 1) {
+        # Date only for the first value
+        return(out[,c('Day',m3_col_name)])
+      } else {
+        return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+      }
     }
   })
   outdf <- do.call(cbind, outdf)
 
   # A dumb fix for trying to be too clever
-  names(outdf)[1:2] <- c('Month', 'Scott_River_Avg_Flow_m3day')
+  names(outdf)[1:2] <- c(ifelse(monthly,'Month','Day'), 'Scott_River_Avg_Flow_m3day')
 
   # Arrange like original
-  outdf <- outdf[,c("Month",
+  outdf <- outdf[,c(ifelse(monthly,'Month','Day'),
                     "Scott_River_Avg_Flow_m3day",
                     "Sugar_Avg_Flow_m3day", "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day", "Johnson_Avg_Flow_m3day",
@@ -546,6 +585,7 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
                                                  output_dir,
                                                  start_date,
                                                  end_date,
+                                                 monthly=T,
                                                  filename='streamflow_input.txt',
                                                  verbose=TRUE) {
 
@@ -562,19 +602,32 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
       out <- subset.DateTwoSided(x, start_date, end_date, include_end=T)
       # Convert to m3/day and rename
       m3_col_name <- paste0(x$stream_name[[1]],'_Avg_Flow_m3day')  # Terrible legacy name
-      names(out)[names(out)=='Date'] <- 'Month'
-      out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
-      if (i == 1) {
-        # Date only for the first value
-        return(out[,c('Month',m3_col_name)])
+      if (monthly) {
+        names(out)[names(out)=='Date'] <- 'Month'
+        out[,m3_col_name] <- (out$pred_AF * 1233.48)/days_in_mon # AF/mon to m^3/day
+        if (i == 1) {
+          # Date only for the first value
+          return(out[,c('Month',m3_col_name)])
+        } else {
+          return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+        }
       } else {
-        return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+        # assume daily
+        names(out)[names(out)=='Date'] <- 'Day'
+        out[,m3_col_name] <- out$pred_AF * 1233.48 # AF/mon to m^3/day
+        if (i == 1) {
+          # Date only for the first value
+          return(out[,c('Day',m3_col_name)])
+        } else {
+          return(out[,m3_col_name, drop=F])  # drop=F returns a dataframe instead of column
+        }
       }
     })
     all_tribs_df <- do.call(cbind, all_tribs_df)
 
     # A dumb fix for trying to be too clever
-    names(all_tribs_df)[1:2] <- c('Month', 'Scott_River_Avg_Flow_m3day')
+    names(all_tribs_df)[1:2] <- c(ifelse(monthly,'Month','Day'),
+                                  'Scott_River_Avg_Flow_m3day')
   } else { # If tribs dataframe provided, rename variable
     all_tribs_df = tribs_df
   }
@@ -598,7 +651,7 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
 
 
   # Initialize output dataframe
-  outdf = data.frame(Month = all_tribs_df$Month)
+  outdf = all_tribs_df[1]
   outdf = cbind(outdf, matrix(data = NA, nrow = nrow(outdf), ncol = n_subws))
   colnames(outdf)[2:ncol(outdf)] = paste0(subws_names_df$subws_name,"_Avg_Flow_m3day")
 
@@ -625,7 +678,7 @@ write_streamflow_by_subws_input_file <- function(gauges=NA, tribs_df = NA, # fun
   }
 
   # Arrange like original
-  outdf <- outdf[,c("Month",
+  outdf <- outdf[,c(ifelse(monthly,"Month","Day"),
                     "Scott_River_Avg_Flow_m3day",
                     "French_Avg_Flow_m3day",
                     "Etna_Avg_Flow_m3day",

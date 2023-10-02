@@ -192,8 +192,14 @@ build_daily_et_df <- function(start_date,
   # declare indices
   indices225_stitched = which(et_stitched_2$Date == (end_sp+1)):length(et_stitched_2$Date)
   # indices225_daily = which(et225$Date== (end_sp +1)):which(et_sp$Date == model_end_date)
-  et_stitched_2$ETo_mm[indices225_stitched] =
-    et225$ETo_mm[match(lubridate::floor_date(et_stitched_2$Date[indices225_stitched], unit="days"), et225$Date)]
+  # LS I'm getting a crash here, I think it's because local files have different column names. Fixed with an If
+  if(api_download == FALSE & local_file == TRUE){
+    et_stitched_2$ETo_mm[indices225_stitched] =
+      et225$ETo_mm[match(lubridate::floor_date(et_stitched_2$Date[indices225_stitched], unit="days"), et225$Date)]
+  } else {
+    et_stitched_2$ETo_mm[indices225_stitched] <-
+      et225$Value[match(lubridate::floor_date(et_stitched_2$Date[indices225_stitched], unit="days"), et225$Date )]
+  }
 
   # Linear interpolate to fill missing data (a single day, as of 8/3/2022)
   n_missing <- nrow(et_stitched_2[is.na(et_stitched_2$ETo_mm),])
