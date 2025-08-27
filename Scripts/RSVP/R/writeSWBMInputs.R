@@ -1211,19 +1211,8 @@ write_SWBM_landcover_file <- function(landcover_df, output_dir, filename="polygo
 write_SWBM_landcover_desc_file <- function(landcover_desc,
                                            output_dir,
                                            filename = "landcover_table.txt",
-                                           verbose  = TRUE,
-                                           irr_eff_change = NA
+                                           verbose  = TRUE
 ) {
-
-  if(!is.na(irr_eff_change)){
-    landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] + irr_eff_change
-    landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] + irr_eff_change
-    landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] + irr_eff_change
-  }
-
 
   col_names <- names(landcover_desc)
   as_chr    <- function(x) if (is.factor(x)) as.character(x) else as.character(x)

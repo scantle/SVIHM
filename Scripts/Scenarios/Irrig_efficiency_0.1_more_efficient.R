@@ -68,10 +68,21 @@ cell_et <- read_SWBM_ET_inputs(file_cells = file.path(data_dir["time_indep_dir",
 # Matrix mapping SWBM fields to MODFLOW cells
 cell_recharge  <- as.matrix(read.table(header = F,  file = file.path(data_dir["time_indep_dir","loc"], "recharge_zones.txt")))
 
-# Update Native Vegetation Rooting Depth
+# Update Landcover Description Table
+# Native Vegetation Rooting Depth
 nat_id <- landcover_desc[landcover_desc['Landcover_Name']=='Native_Vegetation', 'id']
 landcover_desc[nat_id, 'RootDepth'] <- scen$natveg_rd
 landcover_desc[nat_id, 'RD_Mult'] <- scen$natveg_rd_mult
+# Irrigation efficiency changes
+if(!is.na(scen$irr_eff_change)){
+  landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] + scen$irr_eff_change
+  landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] + scen$irr_eff_change
+  landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] + scen$irr_eff_change
+}
+
 
 #-- Crop coefficients (specified daily, change seaonally for some crops)
 daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg_kc=scen$natveg_kc)
@@ -109,8 +120,7 @@ write_SWBM_MAR_depth_file(mar_depth_df, working_dir)
 write_SWBM_MFR_file(mfr_df, working_dir)
 write_SWBM_curtailment_file(curtail_df, working_dir)
 write_SWBM_polygon_file(polygon_fields, working_dir)
-write_SWBM_landcover_desc_file(landcover_desc, working_dir,
-                               irr_eff_change = scen$irr_eff_change) # apply irrigation efficiency change to all irr. types
+write_SWBM_landcover_desc_file(landcover_desc, working_dir)
 write_SWBM_ET_inputs(cell_et, working_dir)
 write_SWBM_ET_correction_file(et_corr, working_dir)
 
