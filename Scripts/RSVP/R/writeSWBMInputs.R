@@ -907,6 +907,7 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #' )
 #' }
 create_SWBM_landcover_df <- function(scenario_id = "basecase",
+                                     landcover_id = "basecase",
                                      start_date,
                                      end_date,
                                      poly_df,
@@ -915,12 +916,12 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
                                      grain_from_alf_acres = NA, grain_from_pas_acres = NA
 )
 {
-
-  recognized_scenarios=c('basecase','nv_gw_mix', 'nv_all',
-                         'grain_6k','grain_12k', 'grain_14k',
-                         'irr_eff_0.1', 'irr_eff_0.2', 'irr_eff_minus_0.1')
-  if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
-    stop("Warning: specified landuse scenario not recognized.")
+  if(landcover_id != "basecase"){
+    recognized_scenarios=c('nv_gw_mix', 'nv_all',
+                           'grain_6k','grain_12k', 'grain_14k')
+    if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
+      stop("Warning: specified landuse scenario not recognized.")
+    }
   }
 
   # Read in landcover, polygon files for reference of
@@ -945,8 +946,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
 
   # Write land cover file for scenarios with basecase land use
   # i.e., no major crop changes or native vegetation coverage changes
-  if(scenario_id %in% c("basecase",
-                        'irr_eff_0.1', 'irr_eff_0.2', 'irr_eff_minus_0.1')){
+  if(tolower(landcover_id) ==  "basecase"){
 
     # Basecase scenario -------------------------------------------------------
 
@@ -1573,7 +1573,7 @@ write_SWBM_MAR_depth_file <- function(mar_df, output_dir, filename = "MAR_depth.
 #'
 #' @param start_date Start date of the simulation (as a Date object).
 #' @param end_date End date of the simulation (as a Date object).
-#' @param scenario_id The curtailment scenario (anything but `basecase` returns a dataframe of zeros)
+#' @param curtail_id The curtailment scenario (anything but `basecase` returns a dataframe of zeros)
 #'
 #' @return A \code{data.frame} whose first column is \code{Stress_Period} (Date)
 #'   and whose remaining columns are named \code{ID_<fieldID>} with Curtailment fractions
@@ -1597,17 +1597,21 @@ write_SWBM_MAR_depth_file <- function(mar_df, output_dir, filename = "MAR_depth.
 #' create_SWBM_curtailment_df(start_date = as.Date("2020-10-01"),
 #'                            end_date = as.Date("2024-09-30"),
 #'                            scenario_id = "basecase")
-create_SWBM_curtailment_df <- function(start_date, end_date, scenario_id) {
+create_SWBM_curtailment_df <- function(start_date, end_date,
+                                       curtail_id = "basecase") {
 
   # generate a stress-period-by-field table (wide format)  for saving to output
   curtail_output <- swbm_build_field_value_df(model_start_date = start_date,
                                               model_end_date = end_date,
-                                              default_values = 0)
+                                              default_values = 0
+                                              #,scenario_id
+                                              )
 
-  no_curtail_scenarios = c("natveg_all_lowET", "natveg_all_highET", "curtail_00_pct_all_years")
-  basecase_curtail_scenarios = c("basecase", "basecase_noMAR", "maxMAR2024")
+  if(curtail_id=="none"){
+    # do nothing; curtail values are 0 for all fields for all periods
+  }
 
-  if(scenario_id == "basecase"){
+  if(curtail_id == "basecase"){
     # Read in 2021/2022 LCS/curtailments (see SVIHM/Scripts/Stored_Analyses/2021_2022_LCS_Curtailments.R)
     curt21_22 <- read.csv(file.path(data_dir["ref_data_dir","loc"], 'Curtail_21_22.csv'))
     curt21_22$Stress_Period <- as.Date(curt21_22$Stress_Period)
@@ -1624,6 +1628,7 @@ create_SWBM_curtailment_df <- function(start_date, end_date, scenario_id) {
     curtail_output <- curtail_output[!curtail_output$Stress_Period %in% c(curt21_22$Stress_Period, curt23$Stress_Period, curt24$Stress_Period), ]
     curtail_output <- rbind(curtail_output, curt21_22, curt23, curt24)
   }
+
 
   # Ensure the result is sorted by Stress_Period
   curtail_output <- curtail_output[order(curtail_output$Stress_Period), ]
