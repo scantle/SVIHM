@@ -97,15 +97,12 @@ mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Scenario contains no MAR or LCS interventions
 mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario= scen$mar_id)
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id = = scen$curtail_id)
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id = scen$curtail_id)
 et_corr <- create_SWBM_ET_correction_df(scen$start_date, scen$end_date, scenario_id='none')
 
 # Scenario-specific commands (please read documentation of commands) - Uncomment if desired
 # polygon_fields <- SWBM_no_pumping(polygon_fields)
 # cell_et <- apply_native_veg_ET_override(cell_et, cell_recharge, landcover_df, landcover_desc, scen$natveg_extD)
-
-# 100% Curtailment all the time
-curtail_df <- SWBM_monthly_curtailment(curtail_df, scen$start_date, scen$end_date, percent=1)
 
 # Optional: Plots for QA/QC
 # plot_landcover(landcover_df, landcover_desc, stress_period="1990-10-01")
