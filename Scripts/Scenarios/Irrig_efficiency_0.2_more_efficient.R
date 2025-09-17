@@ -11,6 +11,9 @@ library(sf)
 scen <- list(
   'name'             = 'irr_eff_0.2',    # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'basecase',     # Landcover scenario identifier
+  'curtail_id'       = 'basecase',     # curtailment scenario identifier
+  'mar_id'           = 'basecase',     # MAR scenario identifier
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.4384,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.4,
@@ -56,6 +59,7 @@ subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start =
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
 landcover_df <- create_SWBM_landcover_df(scenario_id = scen$name,
+                                         landcover_id = scen$landcover_id,
                                          start_date = scen$start_date,
                                          end_date = scen$end_date,
                                          poly_df = polygon_fields,
@@ -91,8 +95,8 @@ daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg
 mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Scenario contains no MAR or LCS interventions
-mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario='none')
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id='none')
+mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario=scen$mar_id)
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id =scen$curtail_id)
 et_corr <- create_SWBM_ET_correction_df(scen$start_date, scen$end_date, scenario_id='none')
 
 # Scenario-specific commands (please read documentation of commands) - Uncomment if desired

@@ -11,6 +11,9 @@ library(sf)
 scen <- list(
   'name'             = 'grain_12k',    # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'crop_change',  # Landcover scenario identifier
+  'curtail_id'       = 'basecase',     # curtailment scenario identifier
+  'mar_id'           = 'basecase',     # MAR scenario identifier
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.4384,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.4,
@@ -84,8 +87,8 @@ daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg
 mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Scenario contains no MAR or LCS interventions
-mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario='none')
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id='none')
+mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario=scen$mar_id)
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id=scen$curtail_id)
 et_corr <- create_SWBM_ET_correction_df(scen$start_date, scen$end_date, scenario_id='none')
 
 # Scenario-specific commands (please read documentation of commands) - Uncomment if desired
