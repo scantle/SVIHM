@@ -11,6 +11,9 @@ library(sf)
 scen <- list(
   'name'             = 'natveg_low',   # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'nv_all',     # Landcover scenario identifier
+  'curtail_id'       = 'none',     # curtailment scenario identifier
+  'mar_id'           = 'none',     # MAR scenario identifier
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 1.0,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.0,
