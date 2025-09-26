@@ -1554,6 +1554,13 @@ apply_native_veg_ET_override <- function(et_list,
 #' head(mar_df)
 #' }
 create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
+
+  if(mar_scenario != "basecase"){
+    recognized_scenarios=c('none','maxMAR_fields24','maxMAR_fields24_2024only')
+    if(!(tolower(mar_scenario) %in% tolower(recognized_scenarios))){
+      stop("Warning: specified MAR scenario not recognized.")
+    }
+  }
   # Create blank field df
   mar_df <- swbm_build_field_value_df(model_start_date = start_date,
                                         model_end_date = end_date,
@@ -1567,7 +1574,7 @@ create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
     # Remove rows in mar_df that match the Stress_Periods, then combine
     mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar24$Stress_Period),]
     mar_df <- rbind(mar_df, mar24)
-  } else if (mar_scenario=='max24') {
+  } else if (mar_scenario=='maxMAR_fields24_2024only') {
     # Read in 2024 MAR (see .\Scripts\Stored_Analyses\2024_MAR.R)
     mar24 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_24max.csv'), header=T)
     mar24$Stress_Period <- as.Date(mar24$Stress_Period)
@@ -1575,6 +1582,18 @@ create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
     # Remove rows in mar_df that match the Stress_Periods, then combine
     mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar24$Stress_Period), ]
     mar_df <- rbind(mar_df, mar24)
+  } else if (mar_scenario=='maxMAR_fields24') {
+    # Repeats the maximum permitted divertable MAR for 2024, on the fields
+    # used for the MAR 2024 pilot project, and applies that MAR to all water years
+
+    # Read in 2024 MAR (see .\Scripts\Stored_Analyses\2024_MAR.R)
+    mar24 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_24max.csv'), header=T)
+    mar24$Stress_Period <- as.Date(mar24$Stress_Period)
+    # assumes one water year of MAR reported
+    repetition_indices = rep(1:12, ceiling( nrow(mar_df)/12))[1:nrow(mar_df)]
+    mar_df[,2:ncol(mar_df)] = mar24[repetition_indices, 2:ncol(mar24)]
+    # repeats mar24 x times
+
   } else if (mar_scenario=='none') {
     # Do nada
   } else {
