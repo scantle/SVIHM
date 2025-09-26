@@ -933,7 +933,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
     recognized_scenarios=c('nv_gw_mix',
                            'natveg_low_all', 'natveg_high_all',
                            'grain_6k','grain_12k', 'grain_14k',
-                           'natveg_low_4k')
+                           'natveg_low_4k', 'natveg_high_4k')
     if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
       stop("Warning: specified landuse scenario not recognized.")
     }
