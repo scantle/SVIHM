@@ -9,15 +9,16 @@ library(sf)
 
 # Scenario Settings -----------------------------------------------------
 scen <- list(
-  'name'             = 'natveg_low_all',   # Scenario name, will be part of directory name
+  'name'             = 'natveg_high_8k',  # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
-  'landcover_id'     = 'natveg_all', # Landcover scenario identifier
+  'landcover_id'     = 'natveg_expanded',     # Landcover scenario identifier
   'curtail_id'       = 'none',     # curtailment scenario identifier
   'mar_id'           = 'none',     # MAR scenario identifier
-  'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
-  'natveg_rd'        = 1.0,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
+  'natveg_kc'        = 1.0,            # Native vegetation daily ET coefficient, default = 0.6
+  'natveg_rd'        = 2.0,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.0,
-  'natveg_extD'      = 2.3            # Native vegetation extinction depth (m), default 0.5
+  'natveg_extD'      = 6.55,            # Native vegetation extinction depth (m), default 0.5
+  'irr_to_natveg_acres' = 8000     # number of irrigated acres to randomly convert to native vegetation
 )
 
 # ------------------------------------------------------------------------------------------------#
@@ -58,19 +59,19 @@ subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start =
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
 landcover_df <- create_SWBM_landcover_df(scenario_id = scen$name,
+                                         start_date = scen$start_date,
+                                         end_date = scen$end_date,
+                                         poly_df = polygon_fields,
+                                         landcover_df = landcover_desc,
                                          landcover_id = scen$landcover_id,
-                                         scen$start_date,
-                                         scen$end_date,
-                                         polygon_fields,
-                                         landcover_desc)
+                                         irr_to_natveg_acres = scen$irr_to_natveg_acres)
 
 # ET (both which cells have ET, and the extinction depths) Returns a list of matrices (by MODFLOW cell)
 cell_et <- read_SWBM_ET_inputs(file_cells = file.path(data_dir["time_indep_dir","loc"], "ET_Zone_Cells.txt"),
                                       file_ext_depth = file.path(data_dir["time_indep_dir","loc"], "ET_Cells_Extinction_Depth.txt"))
 
 # Matrix mapping SWBM fields to MODFLOW cells
-cell_recharge  <- as.matrix(read.table(header = F,
-                                       file = file.path(data_dir["time_indep_dir","loc"], "recharge_zones.txt")))
+cell_recharge  <- as.matrix(read.table(header = F,  file = file.path(data_dir["time_indep_dir","loc"], "recharge_zones.txt")))
 # Read Field-Cell (SWBM-MODFLOW) overlap file
 cell_overlap <- read.table(file.path(data_dir['time_indep_dir','loc'], 'MF_Polygon_Overlaps.txt'), header=T)
 
@@ -90,7 +91,7 @@ mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Irrigation curtailment fractions (as fraction of calculated demand) by field by month
 # Also includes Local Cooperative Solutions (LCSs) that reduce water use (implemented as curtailment)
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id=scen$curtail_id)
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id = scen$curtail_id)
 
 # ET Correction file
 # Includes LCSs that essentially reduce evaporated water losses
@@ -104,6 +105,7 @@ cell_et <- apply_native_veg_ET_override(et_list = cell_et,
                                         landcover_df = landcover_df,
                                         landcover_desc = landcover_desc,
                                         natveg_ExtD = scen$natveg_extD)
+# curtail_df <- SWBM_monthly_curtailment(curtail_df, date_start, date_end)
 
 # Optional: Plots for QA/QC
 # plot_landcover(landcover_df, landcover_desc, stress_period="1990-10-01")
