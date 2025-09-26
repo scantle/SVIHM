@@ -99,6 +99,8 @@ scenario_setup <- function(scen, start_year=1991) {
   # Default inputs to account for scenario differences
   # if not already declared in scenario .R script
 
+  # Native vegetation scenarios - randomly convert irrigated acres to native veg
+  if(!("irr_to_natveg_acres" %in% names(scen))){scen$irr_to_natveg_acres = NA}
   # Crop change scenarios - convert acreage to permanent grain
   if(!("grain_from_alf_acres" %in% names(scen))){scen$grain_from_alf_acres = NA}
   if(!("grain_from_pas_acres" %in% names(scen))){scen$grain_from_pas_acres = NA}

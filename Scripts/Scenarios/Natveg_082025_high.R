@@ -9,7 +9,7 @@ library(sf)
 
 # Scenario Settings -----------------------------------------------------
 scen <- list(
-  'name'             = 'natveg_high',  # Scenario name, will be part of directory name
+  'name'             = 'natveg_high_all',  # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
   'landcover_id'     = 'nv_all',     # Landcover scenario identifier
   'curtail_id'       = 'none',     # curtailment scenario identifier

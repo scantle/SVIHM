@@ -841,15 +841,21 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #' Builds a stress-period-by-field landcover assignment table for the Soil Water Budget Model (SWBM),
 #' according to a chosen land-use scenario.
 #'
-#' @param scenario_id Character. Scenario identifier; one of `"basecase"`, `"nv_gw_mix"`, or `"nv_all"` (case-insensitive).
+#' @param scenario_id Character. Scenario identifier; one of a list of recognized scenarios (case-insensitive).
+#' @param landcover_id Character. Scenario category, pertaining to land use type.
 #'   - `"basecase"`: start from each polygon's default SWBM_LU code and apply an
 #'     alfalfa to grain rotation on alfalfa-coded fields every \code{alfalfa_grain_rotate_years}.
-#'   - `"nv_all"`: replace *all* irrigated landcover codes with the native vegetation code.
-#'   - `"nv_gw_mix"`: replace codes with native vegetation *only* on fields whose
-#'     water source is groundwater (2), mixed (3), or unknown (999).
+#'   - `"natveg_all"`: replace *all* irrigated landcover codes with the native vegetation code.
+#'   - `"natveg_expanded"`: replace *some* irrigated landcover codes with the native vegetation code, based on
+#'   existing crop type, random number of acres to replace, or water source (options are groundwater [2], mixed [3], or unknown [999]).
+#'   - `"crop_change"`: replace irrigated crop acres with a different crop.
+#'
 #' @param start_date Date. Model start date (first stress period).
 #' @param end_date   Date. Model end date (last stress period).
 #' @param alfalfa_grain_rotate_years Integer. Rotation interval in years for alfalfa fields. Default: `8`.
+#' @param grain_from_alf_acres For crop change scenarios: basecase-alfalfa acreage converted to permanent grain in scenario. Default: `NA`.
+#' @param grain_from_pas_acres For crop change scenarios: basecase-pasture acreage converted to permanent grain in scenario. Default: `NA`.
+#' @param irr_to_natveg_acres For expanded native vegetation scenarios: basecase-irrigated acreage converted to native vegetation in scenario. Default: `NA`.
 #' @param polygon_table_file Character. Path to the polygon table file. Must contain at least
 #'   columns \code{SWBM_id}, \code{SWBM_LU}, and \code{WATERSOURC}.
 #'   Default: \code{file.path(data_dir["time_indep_dir","loc"], "polygons_table.txt")}.
@@ -858,7 +864,7 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #'   Default: \code{file.path(data_dir["time_indep_dir","loc"], "landcover_table.txt")}.
 #'
 #' @details
-#' 1. Validates \code{scenario_id} against \code{c("basecase","nv_gw_mix","nv_all")}.
+#' 1. Validates \code{scenario_id} against recognized scenarios. Current list: \code{c('nv_gw_mix','natveg_low_all', 'natveg_high_all','grain_6k','grain_12k', 'grain_14k')}.
 #' 2. Reads the polygon table (\code{polygon_table_file}) and landcover descriptions
 #'    (\code{landcover_desc_file}). Warns if \code{SWBM_id} values are duplicated or missing.
 #' 3. Calls \code{swbm_build_field_value_df(nfields, start_date, end_date)} to create a
@@ -869,10 +875,15 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #'      * Start with each field's baseline \code{SWBM_LU} from \code{polygon_table_file}.
 #'      * For fields with \code{SWBM_LU == 1} (alfalfa), apply an 8-year (by default)
 #'        alfalfa to grain rotation.  Field 1 rotates in years 1,9,...; field 2 in years 2,10,... etc.
-#'    - **nv_all**:
+#'    - **natveg_all**:
 #'      * Identify all \code{Landcover_Name}s matching `"Irrigated"` and replace their codes
 #'        with the native vegetation code.
-#'    - **nv_gw_mix**:
+#'    - **natveg_expanded**:
+#'      * Identify all \code{Landcover_Name}s matching `"Irrigated"` and replace their codes
+#'      with the native vegetation code using a set of rules based on existing crop type,
+#'      random number of irrigated acres to replace, or water source (options are groundwater (2),
+#'       mixed (3), or unknown (999)). Set of rules used determined by \code[scenario_id]
+#'    - **crop_change**:
 #'      * For fields whose water source is groundwater (2), mixed (3), or unknown (999),
 #'        set their landcover code to the native vegetation code for the entire period
 #'        (Unknown water source fields are automatically assumed to be GW in SWBM).
@@ -913,12 +924,16 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
                                      poly_df,
                                      landcover_df,
                                      alfalfa_grain_rotate_years = 8,
-                                     grain_from_alf_acres = NA, grain_from_pas_acres = NA
+                                     grain_from_alf_acres = NA,
+                                     grain_from_pas_acres = NA,
+                                     irr_to_natveg_acres = NA
 )
 {
   if(landcover_id != "basecase"){
-    recognized_scenarios=c('nv_gw_mix', 'nv_all',
-                           'grain_6k','grain_12k', 'grain_14k')
+    recognized_scenarios=c('nv_gw_mix',
+                           'natveg_low_all', 'natveg_high_all',
+                           'grain_6k','grain_12k', 'grain_14k',
+                           'natveg_low_4k')
     if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
       stop("Warning: specified landuse scenario not recognized.")
     }
@@ -937,7 +952,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
                                        model_start_date = start_date,
                                        model_end_date = end_date)
 
-  # Build default (time-invarying) land use table
+  # Build default (time-invarying) basecase land use table
   for(i in 1:num_unique_fields){
     field_id = poly_df$SWBM_id[i]
     # set entire model period to the baseline land use from reference poly_df file
@@ -1094,7 +1109,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
       # For grain_12k, seems like we're getting closer to 11.5k acres
     }
 
-  } else if(scenario_id == "nv_all"){
+  } else if(scenario_id %in% c("natveg_low_all","natveg_high_all")){
 
     # All Nat Veg (No Irrigated Ag) Scenario -----------------------------------
 
@@ -1108,6 +1123,42 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
     }
 
     landcover_output = field_df
+  } else if(landcover_id == "natveg_expanded"){
+
+    #Irr. Acres Randomly Assigned to Nat Veg Scenario (for full model period) -----------------------------------
+    # Land use is static for all time periods, except alfalfa-grain rotation
+    codes_to_replace = landcover_df$id[grep(pattern = "Irrigated", landcover_df$Landcover_Name)]
+    natveg_code = landcover_df$id[grep(pattern = "Native", landcover_df$Landcover_Name)]
+
+    #Set initial fields equal to unchanging default
+    landcover_output = field_df
+
+    # Convert basecase irrigated acres to native vegetation, selecting randomly
+    # until the target acreage is reached
+    set.seed(1)
+    basecase_acre_check = aggregate(poly_df$MF_Area_m2/4046.86, by=list(poly_df$SWBM_LU), FUN = sum)  # convert m2 to acres
+    irr_to_natveg_target = irr_to_natveg_acres * 4046.86 # convert from acres to m2
+    irr_to_natveg_converted = 0
+    irr_poly_list = poly_df$SWBM_id[poly_df$SWBM_LU %in% codes_to_replace] # polygon IDs covered by irr.ag in the basecase land use
+    while(irr_to_natveg_converted < irr_to_natveg_target){
+      random_i = sample(1:length(irr_poly_list), size = 1)
+      random_poly_id = irr_poly_list[random_i]
+      #assign output land use to grain for this field
+      landcover_output[,paste0("ID_",random_poly_id)] = natveg_code # assign native vegetation
+      # add acreage to acreage counter
+      irr_to_natveg_converted = irr_to_natveg_converted + poly_df$MF_Area_m2[poly_df$SWBM_id==random_poly_id]
+      # remove polygon from list of available alfalfa polygons
+      irr_poly_list = irr_poly_list[irr_poly_list != random_poly_id]
+    }
+
+    # Stored code for time-varying nat-veg replacement
+    # for(i in 1:(ncol(field_df)-1)){
+    #   field_vals = field_df[,i+1]
+    #   field_vals[field_vals %in% codes_to_replace] = natveg_code
+    #   field_df[,i+1] = field_vals
+    # }
+
+    # landcover_output = field_df
   } else if(scenario_id == "nv_gw_mix"){
 
     # Nat Veg on GW or Mixed-water-source fields (Only Surface Water-Irrigated Ag) Scenario -----------------------------------
