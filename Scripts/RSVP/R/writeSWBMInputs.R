@@ -515,6 +515,8 @@ write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, ver
   write_SWBM_file(sfr_component, output_dir, filename, verbose)
 }
 
+
+
 #-------------------------------------------------------------------------------------------------#
 
 #' Write SFR Diversions File
@@ -559,6 +561,185 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
               sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
 
 }
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Alter subwatershed inflow time series according to scenario name
+#'
+#' @param subws_inflows Wide data table of inflow data for each day (rows) for each tributary (column)
+#' @param scenario_id Management scenario identifier
+#'
+#' @return None, writes file to disk
+#' @author Claire Kouba, Leland Scantlebury
+#' @export
+#'
+#' @examples
+#' create_SWBM_sfr_inflows_df(subws_inflows, scen$name)
+
+alter_SWBM_sfr_inflows <- function(subws_inflows,
+                                       scenario_id) {
+
+  #  Dev: relate tributary flows to observed FJ flow
+
+
+  #recognized scenarios
+  if(scenario_id == "basecase"){
+    # Historical Streamflow Curtailments for 2021, 2022
+    subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
+    subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
+  }
+
+  return(subws_inflows)
+
+}
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Alter tributary inflow file to reflect storage and releases from a reservoir
+#'
+#' @param sfr_component Dataframe of months and either: 1) subwatershed inflow partition
+#' fractions (see \code{\link{gen_monthly_sfr_flow_partition}}), or 2) inflows available
+#' for irrigation, or 3) inflows NOT available for irrigation (e.g. reserved for environmental
+#' flows) (for items 2 and 3 see \code{\link{process_sfr_inflows}}).
+#' @param output_dir directory to write the files to
+#' @param filename Writes to this filename
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None, writes file to disk
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' subws_inflows <- process_sfr_inflows(scen, "daily_tributary_streamflow.txt")
+#' write_SWBM_SFR_inflow_files(subws_inflows$non_irr, '.', "subwatershed_irrigation_inflows.txt")
+#' }
+alter_trib_inflows_for_reservoir <- function(sfr_component,
+                                             output_dir,
+                                             filename,
+                                             verbose=TRUE) {
+  # see if daily
+  daily = FALSE
+  if (mean(diff.Date(sfr_component[,1]))) { daily = TRUE }
+
+  # if(filename=="SFR_subws_flow_partitioning.txt"){
+  if (daily) {
+    # Really no reformat necessary
+    #sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%d-%b-%Y'))
+  } else {
+    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
+  }
+
+  write_SWBM_file(sfr_component, output_dir, filename, verbose)
+
+
+
+
+
+
+
+  stm = read.table(file1, header = T)
+
+  # Very simple reservoir simulation
+
+  #Convert values to AF per day
+  stm_AFday = stm
+  m3day_to_AFday = 1/4046.86 * 3.28084
+
+  convert_these_columns = grepl(pattern = "m3day", x = colnames(stm_AFday))
+  stm_AFday[,convert_these_columns] = stm[,convert_these_columns] * m3day_to_AFday
+  #update column names
+  colnames(stm_AFday)[convert_these_columns] =
+    sub("m3day", "AFday" , colnames(stm_AFday)[convert_these_columns])
+
+  #Reservoir parameters
+  cfs_to_AFday = 2.29568411*10^-5 * 86400
+  cfs_goal = 30
+  D_daily = cfs_goal * cfs_to_AFday # Target demand during dry season (fish flow releases)
+  # Assume demand during the dry season is about 20 cfs for ~150 days (July 1 to Dec 1)
+  K = D_daily * 150 # Reservoir capacity. Rough estimate: low-flow releases for dry season.
+  # TO DO: check how realistic this would be (6 TAF capacity?)
+
+  #Initialize inflow time series
+  Q_daily_avg = stm_AFday[,grepl(pattern = reservoir_scenario, x = colnames(stm_AFday))]
+  Q = Q_daily_avg * num_days # convert to monthly volume, AF/month
+  nmonth = length(Q) # number of months
+
+  S = rep_len(0, nmonth)  # Storage
+  R = rep_len(0, nmonth)  # Discharge from reservoir
+  shortage = rep_len(0, nmonth)
+
+  # S[1] = K # start simulation at full
+  # R[1] = D_daily*num_days[1]  # first month meets demand
+  # met_demand = 1  # counter
+
+  S[1] = 0 # start simulation at empty
+  R[1] = 0 #
+  met_demand = 0  # counter
+
+
+  for(t in 2:nmonth){
+
+    # new storage: mass balance. Max value is K
+    S[t] = min(S[t-1] + Q[t-1] - R[t-1], K)
+    # Calculate monthly demand
+    D = D_daily*num_days[t]
+
+    if(t%%12 %in% 0:3){
+      # In Dec-Mar, release the minimum (demand) until the reservoir is full, then let flow bypass reservoir
+      if(S[t] + Q[t] <= K){
+        R[t] = min(D, S[t]+Q[t])               # If storage + inflow is less than capacity, release minimum (D)
+      }else{
+        R[t] = S[t] + Q[t] - K # If storage is full or nearly full, release inflow or fraction of inflow
+      }
+    }
+
+    if(t%%12 %in% 4:6){
+      # In Apr-June, let flow bypass reservoir for irrigation (but keep stored volume in reserve)
+      R[t] = Q[t]
+    }
+
+    if(t%%12 %in% 7:11){
+      # In July-Nov, release water (no test for low-flow threshold)
+      # release demand amount if enough water is available to meet demand
+      if((S[t] + Q[t]) > D){
+        R[t] = D
+        met_demand = met_demand + 1
+      } else {
+        # release all available water if not enough to meet demand
+        R[t] = S[t] + Q[t]
+      }
+    }
+    # after each month, calculate shortage
+    shortage[t] = max(D - R[t], 0)
+  }
+
+  # Evaluate reservoir performance in terms of meeting flow release target
+  dry_months = sum(1:nmonth%%12 %in% 7:11) #number of months in which we want to meet demand
+  reliability = met_demand / dry_months
+
+  # Plot inflow, discharge, and storage
+  plot(model_months, Q/num_days/cfs_to_AFday, type = "l", ylab = "Inflow, cfs")
+  plot(model_months, R/num_days/cfs_to_AFday, type = "l", ylab = "Discharge, cfs")
+  plot(model_months, S, type = "l", ylab = "Storage, AF", main = paste(reservoir_scenario, cfs_goal, "cfs demand"))
+
+  # Revise streamflow_input.txt
+
+  # Replace the inflow on the designated tributary with the outflow from the reservoir
+  replace_this_column = grepl(pattern = reservoir_scenario, x = colnames(stm_AFday))
+  stm_AFday[,replace_this_column] = R / num_days # convert to AF/day
+
+  #Convert back to m3day
+  stm_m3day = stm_AFday
+  stm_m3day[,convert_these_columns] = stm_AFday[,convert_these_columns] / m3day_to_AFday
+  #update column names
+  colnames(stm_m3day)[convert_these_columns] =
+    sub( "AFday", "m3day", colnames(stm_AFday)[convert_these_columns])
+
+
+  write.table(stm_m3day,file = file2, append = F, quote = F, row.names = F, col.names = T, sep = '\t')
+
+}
+
 
 #-------------------------------------------------------------------------------------------------#
 #' Build Field-value Data Frame

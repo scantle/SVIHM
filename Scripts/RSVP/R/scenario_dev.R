@@ -112,6 +112,8 @@ scenario_setup <- function(scen, start_year=1991) {
   # basecase historical curtailment (starting wy 2021), or specified curtailment scenario?
   if(!("curtail_id" %in% names(scen))){scen$curtail_id = "basecase"}
   if(!("landcover_id" %in% names(scen))){scen$landcover_id = "basecase"}
+  # Specify scenario for stream inflow (and any flows designated for non-irrigation, in-stream environmental uses)
+  if(!("stream_inflow_id" %in% names(scen))){scen$stream_inflow_id = "basecase"}
 
   return(scen)
 }

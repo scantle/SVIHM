@@ -17,7 +17,8 @@ scen <- list(
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.4384,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.4,
-  'natveg_extD'      = 0.5             # Native vegetation extinction depth (m), default 0.5
+  'natveg_extD'      = 0.5,             # Native vegetation extinction depth (m), default 0.5
+  'stream_inflow_id' = "emergency_flows_2025" # non-irr flows taken from https://www.waterboards.ca.gov/drought/scott_shasta_rivers/docs/2025/2025-0117-01EE-approval.pdf
 )
 
 # ------------------------------------------------------------------------------------------------#
@@ -51,14 +52,9 @@ num_days_df <-  data.frame("stress_period" = 1:scen$num_stress_periods, ndays = 
 subws_inflow_filename <- file.path(scen$input_dir,"daily_tributary_streamflow.txt")
 subws_inflows <- process_sfr_inflows(scen, subws_inflow_filename)
 
-# Apply basecase surface diversion curtailments in two years or make scenario-specific
-# alterations to total inflows or non-irrigation flow designations
-subws_inflows = alter_SWBM_sfr_inflows(subws_inflows, scen$name)
-
-# analysis of what constitutes "low flows". try multiple thresholds?
-# do all trib flows go low together at the same time? if so could do threshold of combined trib inflows
-# Might need a new function. low flow curtailment and/or just guaranteed E-flows preserved. For the 2nd one,
-# going to need some analysis of which trib flows correspond to which flows an the FJ gauge.
+# Historical Streamflow Curtailments for 2021, 2022
+subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
+subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
 
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
