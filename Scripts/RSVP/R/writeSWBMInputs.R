@@ -577,17 +577,141 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
 #' create_SWBM_sfr_inflows_df(subws_inflows, scen$name)
 
 alter_SWBM_sfr_inflows <- function(subws_inflows,
-                                       scenario_id) {
+                                   scenario_id,
+                                   min_flow_file_name = NA,
+                                   rerun_FJ_trib_corr = F) {
+  if(!is.na(min_flow_file_name)){min_flows = read.csv(min_flow_file_name)}
 
-  #  Dev: relate tributary flows to observed FJ flow
-
-
-  #recognized scenarios
   if(scenario_id == "basecase"){
     # Historical Streamflow Curtailments for 2021, 2022
     subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
     subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
+  } else if(scenario_id == "eflows25_div_lims") {
+
+    if(rerun_FJ_trib_corr == T){
+      # correlate trib flows with FJ flows
+
+      # Setup read DF
+      streams <- stream_metadata
+      streams['FJ','name'] <- 'FJ'
+      # streams['FJ','daily_file'] <- 'USGS_11519500_WY_1942_2018.txt'
+      streams <- streams[c("FJ", setdiff(rownames(streams), "FJ")), ]
+
+      #-- Read in data
+      daily_all <- read_gauge_daily_data(streams)
+
+      # Pull out empty gauges - those used in regression-based SVIHM will be added back later
+      daily_all <- daily_all[lengths(daily_all) != 0]
+
+      #-- Add in new FJ data
+      fj_update = NULL
+      if (!is.null(fj_update)) {
+        daily_all[[1]] <- assimilate_fj_update(daily_all[[1]], fj_update)
+      }
+
+      # diagnostic plots: FJ vs
+      update_dir = latest_dir(data_dir['update_dir','loc'])
+      fj_file = list.files(update_dir)[grep(pattern = "11519500",
+                                  x = list.files(update_dir))]
+      fj_flow = read.csv(file.path(update_dir,fj_file))
+      trib_days = subws_inflows$irr$Day
+
+      for(i in 1:nrow(min_flows)){
+        min_fj = min_flows$Flow_cfs[i]
+        fj_dates_around_min = fj_flow$Date[fj_flow$Flow < min_fj * 1.1 & fj_flow$Flow > min_fj* 0.9]
+        for(j in 2:(ncol(subws_inflows$irr))){
+          trib_m3d_on_min_dates = subws_inflows$irr[subws_inflows$irr$Day %in% fj_dates_around_min, j]
+          if(i==1 & j==2){
+            fj_to_tribs = data.frame(fj_min_cfs = min_fj,
+                                               trib_col = colnames(subws_inflows$irr)[j],
+                                               trib_min_m3day = median(trib_m3d_on_min_dates),
+                                               trib_flow_sd = sd(trib_m3d_on_min_dates)
+            )
+          } else {
+            fj_to_tribs_row = data.frame(fj_min_cfs = min_fj,
+                                                   trib_col = colnames(subws_inflows$irr)[j],
+                                                   trib_min_m3day = median(trib_m3d_on_min_dates),
+                                                   trib_flow_sd = sd(trib_m3d_on_min_dates))
+            fj_to_tribs = rbind(fj_to_tribs, fj_to_tribs_row)
+          }
+        }
+
+      }
+
+      # Build table of dates and minimum flow values for FJ and each trib
+
+      example_wy = 2020
+      example_dates = seq.Date(from = as.Date(paste0(example_wy-1,"-10-01")), to = as.Date(paste0(example_wy,"-09-30")), by = "day")
+      min_flows$ex_wy = example_wy; min_flows$ex_wy[min_flows$start_month>9] = example_wy-1
+      min_flows$start_date = as.Date(paste(min_flows$ex_wy, min_flows$start_month, min_flows$start_day, sep = "-"))
+      min_flows$end_date = as.Date(paste(min_flows$ex_wy, min_flows$end_month, min_flows$end_day, sep = "-"))
+      #add  FJ flow to regime tab
+      regime_tab = data.frame(example_dates = example_dates)#, month = month(example_dates), day = day(example_dates))
+      regime_tab$FJ_min_flow_cfs = NA
+      for(i in 1:nrow(min_flows)){
+        # translate flow regime dates into rows in regime_tab
+        flow_cfs = min_flows$Flow_cfs[i]
+        flow_start = min_flows$start_date[i]
+        flow_end = min_flows$end_date[i]
+
+        assign_these_rows = regime_tab$example_dates >= flow_start &
+          regime_tab$example_dates <= flow_end
+        # assign regime flow value to the designated dates
+        regime_tab$FJ_min_flow_cfs[assign_these_rows] = flow_cfs
+      }
+      # add Tribs min flow based on fj_to_tribs conversion
+      for(j in 2:ncol(subws_inflows$irr)){
+        regime_tab$new_col = NA
+
+        for(i in 1:nrow(min_flows)){
+          fj_flow_cfs = min_flows$Flow_cfs[i]
+          # find the flow value for trib_j associated with the FJ min_flow_i
+          trib_flow_picker = fj_to_tribs$fj_min_cfs == fj_flow_cfs &
+            fj_to_tribs$trib_col == colnames(subws_inflows$irr)[j]
+          # translate flow regime dates into rows in regime_tab
+          flow_m3d = fj_to_tribs$trib_min_m3day[trib_flow_picker]
+          flow_start = min_flows$start_date[i]
+          flow_end = min_flows$end_date[i]
+
+          assign_these_rows = regime_tab$example_dates >= flow_start &
+            regime_tab$example_dates <= flow_end
+          # assign regime flow value to the designated dates
+          regime_tab$new_col[assign_these_rows] = flow_m3d
+        }
+        colnames(regime_tab)[ncol(regime_tab)] = colnames(subws_inflows$irr)[j]
+      }
+
+      # Diagnostics
+      # for(j in 3:ncol(regime_tab)){
+      #   if(j == 3){
+      #     plot(regime_tab$example_dates, regime_tab[,j] / 2446.58, col = j, type = "l",
+      #          ylim = c(0, max(regime_tab[,3:ncol(regime_tab)])/2446.58),
+      #          xlab = "Date in WY 2020", ylab = "Flow (cfs)")
+      #     grid()
+      #   } else {
+      #       lines(regime_tab$example_dates, regime_tab[,j] / 2446.58, col = j)
+      #     }
+      #
+      # }
+      regime_tab_filename = file.path(data_dir["ref_data_dir","loc"], paste0("FJ Emergency Flows 2025 Converted to Median Trib Flow_",Sys.Date(),".csv"))
+      write.csv(regime_tab, regime_tab_filename,
+                row.names = F)
+
+    } else {
+      ref_files = list.files(data_dir["ref_data_dir","loc"])
+      latest_regime_tab_filename = ref_files[grep(x = ref_files,
+                                                  pattern = "FJ Emergency Flows 2025 Converted to Median Trib Flow")]
+      regime_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],latest_regime_tab_filename))
+    }
+
+    subws_inflows <- streamflow_curtailment(flows = subws_inflows,
+                                            min_flow_regime = regime_tab)
+  } else if(scenario_id == "none") {
+    # do nothing, return unaltered inflows
+  }   else {
+    stop(paste('Unrecognized scenario:',scenario_id,'. Must be one of "basecase","none","eflows25_div_lims"'))
   }
+
 
   return(subws_inflows)
 

@@ -6,21 +6,28 @@
 \usage{
 create_SWBM_landcover_df(
   scenario_id = "basecase",
+  landcover_id = "basecase",
   start_date,
   end_date,
   poly_df,
   landcover_df,
-  alfalfa_grain_rotate_years = 8
+  alfalfa_grain_rotate_years = 8,
+  grain_from_alf_acres = NA,
+  grain_from_pas_acres = NA,
+  irr_to_natveg_acres = NA
 )
 }
 \arguments{
-\item{scenario_id}{Character. Scenario identifier; one of \code{"basecase"}, \code{"nv_gw_mix"}, or \code{"nv_all"} (case-insensitive).
+\item{scenario_id}{Character. Scenario identifier; one of a list of recognized scenarios (case-insensitive).}
+
+\item{landcover_id}{Character. Scenario category, pertaining to land use type.
 \itemize{
 \item \code{"basecase"}: start from each polygon's default SWBM_LU code and apply an
 alfalfa to grain rotation on alfalfa-coded fields every \code{alfalfa_grain_rotate_years}.
-\item \code{"nv_all"}: replace \emph{all} irrigated landcover codes with the native vegetation code.
-\item \code{"nv_gw_mix"}: replace codes with native vegetation \emph{only} on fields whose
-water source is groundwater (2), mixed (3), or unknown (999).
+\item \code{"natveg_all"}: replace \emph{all} irrigated landcover codes with the native vegetation code.
+\item \code{"natveg_expanded"}: replace \emph{some} irrigated landcover codes with the native vegetation code, based on
+existing crop type, random number of acres to replace, or water source (options are groundwater \link{2}, mixed \link{3}, or unknown \link{999}).
+\item \code{"crop_change"}: replace irrigated crop acres with a different crop.
 }}
 
 \item{start_date}{Date. Model start date (first stress period).}
@@ -28,6 +35,12 @@ water source is groundwater (2), mixed (3), or unknown (999).
 \item{end_date}{Date. Model end date (last stress period).}
 
 \item{alfalfa_grain_rotate_years}{Integer. Rotation interval in years for alfalfa fields. Default: \code{8}.}
+
+\item{grain_from_alf_acres}{For crop change scenarios: basecase-alfalfa acreage converted to permanent grain in scenario. Default: \code{NA}.}
+
+\item{grain_from_pas_acres}{For crop change scenarios: basecase-pasture acreage converted to permanent grain in scenario. Default: \code{NA}.}
+
+\item{irr_to_natveg_acres}{For expanded native vegetation scenarios: basecase-irrigated acreage converted to native vegetation in scenario. Default: \code{NA}.}
 
 \item{polygon_table_file}{Character. Path to the polygon table file. Must contain at least
 columns \code{SWBM_id}, \code{SWBM_LU}, and \code{WATERSOURC}.
@@ -51,7 +64,7 @@ according to a chosen land-use scenario.
 }
 \details{
 \enumerate{
-\item Validates \code{scenario_id} against \code{c("basecase","nv_gw_mix","nv_all")}.
+\item Validates \code{scenario_id} against recognized scenarios. Current list: \code{c('nv_gw_mix','natveg_low_all', 'natveg_high_all','grain_6k','grain_12k', 'grain_14k')}.
 \item Reads the polygon table (\code{polygon_table_file}) and landcover descriptions
 (\code{landcover_desc_file}). Warns if \code{SWBM_id} values are duplicated or missing.
 \item Calls \code{swbm_build_field_value_df(nfields, start_date, end_date)} to create a
@@ -65,12 +78,19 @@ wide table with one column per field (named \code{ID_<SWBM_id>}) and a
 \item For fields with \code{SWBM_LU == 1} (alfalfa), apply an 8-year (by default)
 alfalfa to grain rotation.  Field 1 rotates in years 1,9,...; field 2 in years 2,10,... etc.
 }
-\item \strong{nv_all}:
+\item \strong{natveg_all}:
 \itemize{
 \item Identify all \code{Landcover_Name}s matching \code{"Irrigated"} and replace their codes
 with the native vegetation code.
 }
-\item \strong{nv_gw_mix}:
+\item \strong{natveg_expanded}:
+\itemize{
+\item Identify all \code{Landcover_Name}s matching \code{"Irrigated"} and replace their codes
+with the native vegetation code using a set of rules based on existing crop type,
+random number of irrigated acres to replace, or water source (options are groundwater (2),
+mixed (3), or unknown (999)). Set of rules used determined by \code\link{scenario_id}
+}
+\item \strong{crop_change}:
 \itemize{
 \item For fields whose water source is groundwater (2), mixed (3), or unknown (999),
 set their landcover code to the native vegetation code for the entire period

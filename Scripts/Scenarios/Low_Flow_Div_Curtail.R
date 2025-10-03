@@ -9,7 +9,7 @@ library(sf)
 
 # Scenario Settings -----------------------------------------------------
 scen <- list(
-  'name'             = 'basecase',     # Scenario name, will be part of directory name
+  'name'             = 'eflows25_div_lims',     # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
   'landcover_id'     = 'basecase',     # Landcover scenario identifier
   'curtail_id'       = 'basecase',     # curtailment scenario identifier
@@ -51,10 +51,12 @@ num_days_df <-  data.frame("stress_period" = 1:scen$num_stress_periods, ndays = 
 #-- Streamflow
 subws_inflow_filename <- file.path(scen$input_dir,"daily_tributary_streamflow.txt")
 subws_inflows <- process_sfr_inflows(scen, subws_inflow_filename)
-
-# Historical Streamflow Curtailments for 2021, 2022
-subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
-subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
+# Apply basecase surface diversion curtailments in two years or make scenario-specific
+# alterations to total inflows or non-irrigation flow designations
+subws_inflows = alter_SWBM_sfr_inflows(subws_inflows = subws_inflows,
+                                       scenario_id = scen$name,
+                                       min_flow_file_name = file.path(data_dir["ref_data_dir","loc"],
+                                                                      "Scott River 2025 Drought Emergency Minimum Flows.csv") )
 
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
