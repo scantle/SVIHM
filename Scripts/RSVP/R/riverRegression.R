@@ -4,7 +4,7 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
                                 end_date,
                                 fj_update = NULL,
                                 max_missing_days = 3,
-                                regression_cutoff_date = as.Date('2018-10-01'),
+                                regression_cutoff_date=NULL,
                                 monthly=TRUE,
                                 one_regression=TRUE,
                                 use_obs=TRUE,
@@ -26,12 +26,27 @@ get_tributary_flows <- function(start_date=as.Date('1990-10-01'),
     daily_all[[1]] <- assimilate_fj_update(daily_all[[1]], fj_update)
   }
 
+  # -- Determine the training window end (no cutoff => use end_date)
+  # Treat NA the same as NULL.
+  if (length(regression_cutoff_date) == 1 && is.na(regression_cutoff_date)) {
+    regression_cutoff_date <- NULL
+  }
+  train_end <- if (is.null(regression_cutoff_date)) end_date else regression_cutoff_date
+  if (verbose) {
+    msg <- if (is.null(regression_cutoff_date)) {
+      sprintf("No regression cutoff provided: training through %s.", format(train_end))
+    } else {
+      sprintf("Using regression cutoff: training through %s.", format(train_end))
+    }
+    message(msg)
+  }
+
   #-- Prepare Data for regression, pre- and post- WY1973
   prepd_all <- lapply(daily_all, FUN=gauge_prep, monthly=monthly)
 
   preWY1973 <- lapply(prepd_all, FUN=gauge_regression_prep, end_date = as.Date("1972/10/1"))
   postWY1973 <- lapply(prepd_all, FUN=gauge_regression_prep, start_date = as.Date("1972/10/1"),
-                                                              end_date = regression_cutoff_date)
+                                                              end_date = train_end)
 
   #-- Copy over stats for gauges with no postWY1972 data and vice versa
   postWY1973 <- mapply(df.copy_stats, preWY1973, postWY1973, MoreArgs = list(overwrite=F), SIMPLIFY = F)
@@ -149,7 +164,7 @@ combine_east_and_south_fork= function(tribs_list){
   # add South and East Fork flow together to get Scott River inflow
   scott_river = data.frame(Date = tribs_list$East_Fork$Date,
                            normLogAF_trib = NA,
-                           normlogAF_FJ = NA,
+                           normLogAF_FJ = NA,
                            stream_name = "East_and_South_Forks",
                            pred = NA,
                            source = pred_or_obs,

@@ -10,7 +10,9 @@ create_SWBM_landcover_df(
   end_date,
   poly_df,
   landcover_df,
-  alfalfa_grain_rotate_years = 8
+  alfalfa_grain_rotate_years = 8,
+  grain_from_alf_acres = NA,
+  grain_from_pas_acres = NA
 )
 }
 \arguments{
