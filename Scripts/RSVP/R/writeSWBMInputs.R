@@ -328,7 +328,7 @@ write_SWBM_main_input_file <- function(
     nAgWells               = 167,
     nSpecWells             = 0,
     nSubws                 = 8,
-    nMfrWells              = 1163,
+    nMfrWells              = 1008,
     inflow_is_vol          = FALSE,
     daily_sw               = TRUE,
     nSFR_inflow_segs       = 12,
