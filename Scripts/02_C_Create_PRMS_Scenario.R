@@ -27,7 +27,6 @@ scen <- scenario_setup(scen)
 # Create working directory
 working_dir <- create_scenario_dir(scen$scen_dir)
 
-
 # Read in basecase SWBM time-invariant files ------------------------------
 
 landcover_desc <- read.table(scen$landcover_desc_file, header=T)
@@ -121,6 +120,8 @@ write_SWBM_sfr_template_file(nsteps = sum(scen$num_days), output_dir = working_d
 write_SWBM_main_input_file(output_dir = working_dir,
                            num_stress_periods = scen$num_stress_periods,
                            nSubws = scen$nSubws,
+                           nMfrWells = 2444,
+                           mfrwell_mult_file='catchment_mult.txt',
                            nSFR_inflow_segs = scen$nSFR_inflow_segs)
 
 # Copy meteorological files from the input_dir to the working_dir
@@ -130,8 +131,8 @@ file.copy(from=file.path(scen$input_dir, 'ref_et.txt'), to = working_dir)
 # Additional file updates for PRMS
 file.copy(from=file.path(scen$input, 'SFR_inflow_segments.txt'), to = working_dir)
 file.copy(from=file.path(scen$input, 'modflow_cell_to_catchment.txt'), to = working_dir)
-file.copy(from=file.path(scen$input, 'modflow_cell_to_catchment.txt'), to = working_dir)
-file.copy(from=file.path(scen$input, 'SVIHM.hob'), to = working_dir)
+file.copy(from=file.path(scen$input, 'catchment_mult.txt'), to = working_dir)
+file.copy(from=file.path(scen$input, 'monthly_MFR_by_catchment.txt'), to = working_dir)
 
 # Write MODFLOW Inputs ----------------------------------------------------
 
