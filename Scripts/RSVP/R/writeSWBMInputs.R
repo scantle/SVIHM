@@ -515,6 +515,8 @@ write_SWBM_SFR_inflow_files <- function(sfr_component, output_dir, filename, ver
   write_SWBM_file(sfr_component, output_dir, filename, verbose)
 }
 
+
+
 #-------------------------------------------------------------------------------------------------#
 
 #' Write SFR Diversions File
@@ -559,6 +561,309 @@ write_SWBM_SFR_diversions_file <- function(filename = "SFR_diversions.txt",
               sep = " ", quote = FALSE, col.names = FALSE, row.names = FALSE)
 
 }
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Alter subwatershed inflow time series according to scenario name
+#'
+#' @param subws_inflows Wide data table of inflow data for each day (rows) for each tributary (column)
+#' @param scenario_id Management scenario identifier
+#'
+#' @return None, writes file to disk
+#' @author Claire Kouba, Leland Scantlebury
+#' @export
+#'
+#' @examples
+#' create_SWBM_sfr_inflows_df(subws_inflows, scen$name)
+
+alter_SWBM_sfr_inflows <- function(subws_inflows,
+                                   scenario_id,
+                                   min_flow_file_name = NA,
+                                   rerun_FJ_trib_corr = F) {
+  if(!is.na(min_flow_file_name)){min_flows = read.csv(min_flow_file_name)}
+
+  if(scenario_id == "basecase"){
+    # Historical Streamflow Curtailments for 2021, 2022
+    subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
+    subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
+  } else if(scenario_id == "eflows25_div_lims") {
+
+    if(rerun_FJ_trib_corr == T){
+      # correlate trib flows with FJ flows
+
+      # Setup read DF
+      streams <- stream_metadata
+      streams['FJ','name'] <- 'FJ'
+      # streams['FJ','daily_file'] <- 'USGS_11519500_WY_1942_2018.txt'
+      streams <- streams[c("FJ", setdiff(rownames(streams), "FJ")), ]
+
+      #-- Read in data
+      daily_all <- read_gauge_daily_data(streams)
+
+      # Pull out empty gauges - those used in regression-based SVIHM will be added back later
+      daily_all <- daily_all[lengths(daily_all) != 0]
+
+      #-- Add in new FJ data
+      fj_update = NULL
+      if (!is.null(fj_update)) {
+        daily_all[[1]] <- assimilate_fj_update(daily_all[[1]], fj_update)
+      }
+
+      # diagnostic plots: FJ vs
+      update_dir = latest_dir(data_dir['update_dir','loc'])
+      fj_file = list.files(update_dir)[grep(pattern = "11519500",
+                                  x = list.files(update_dir))]
+      fj_flow = read.csv(file.path(update_dir,fj_file))
+      trib_days = subws_inflows$irr$Day
+
+      for(i in 1:nrow(min_flows)){
+        min_fj = min_flows$Flow_cfs[i]
+        fj_dates_around_min = fj_flow$Date[fj_flow$Flow < min_fj * 1.1 & fj_flow$Flow > min_fj* 0.9]
+        for(j in 2:(ncol(subws_inflows$irr))){
+          trib_m3d_on_min_dates = subws_inflows$irr[subws_inflows$irr$Day %in% fj_dates_around_min, j]
+          if(i==1 & j==2){
+            fj_to_tribs = data.frame(fj_min_cfs = min_fj,
+                                               trib_col = colnames(subws_inflows$irr)[j],
+                                               trib_min_m3day = median(trib_m3d_on_min_dates),
+                                               trib_flow_sd = sd(trib_m3d_on_min_dates)
+            )
+          } else {
+            fj_to_tribs_row = data.frame(fj_min_cfs = min_fj,
+                                                   trib_col = colnames(subws_inflows$irr)[j],
+                                                   trib_min_m3day = median(trib_m3d_on_min_dates),
+                                                   trib_flow_sd = sd(trib_m3d_on_min_dates))
+            fj_to_tribs = rbind(fj_to_tribs, fj_to_tribs_row)
+          }
+        }
+
+      }
+
+      # Build table of dates and minimum flow values for FJ and each trib
+
+      example_wy = 2020
+      example_dates = seq.Date(from = as.Date(paste0(example_wy-1,"-10-01")), to = as.Date(paste0(example_wy,"-09-30")), by = "day")
+      min_flows$ex_wy = example_wy; min_flows$ex_wy[min_flows$start_month>9] = example_wy-1
+      min_flows$start_date = as.Date(paste(min_flows$ex_wy, min_flows$start_month, min_flows$start_day, sep = "-"))
+      min_flows$end_date = as.Date(paste(min_flows$ex_wy, min_flows$end_month, min_flows$end_day, sep = "-"))
+      #add  FJ flow to regime tab
+      regime_tab = data.frame(example_dates = example_dates)#, month = month(example_dates), day = day(example_dates))
+      regime_tab$FJ_min_flow_cfs = NA
+      for(i in 1:nrow(min_flows)){
+        # translate flow regime dates into rows in regime_tab
+        flow_cfs = min_flows$Flow_cfs[i]
+        flow_start = min_flows$start_date[i]
+        flow_end = min_flows$end_date[i]
+
+        assign_these_rows = regime_tab$example_dates >= flow_start &
+          regime_tab$example_dates <= flow_end
+        # assign regime flow value to the designated dates
+        regime_tab$FJ_min_flow_cfs[assign_these_rows] = flow_cfs
+      }
+      # add Tribs min flow based on fj_to_tribs conversion
+      for(j in 2:ncol(subws_inflows$irr)){
+        regime_tab$new_col = NA
+
+        for(i in 1:nrow(min_flows)){
+          fj_flow_cfs = min_flows$Flow_cfs[i]
+          # find the flow value for trib_j associated with the FJ min_flow_i
+          trib_flow_picker = fj_to_tribs$fj_min_cfs == fj_flow_cfs &
+            fj_to_tribs$trib_col == colnames(subws_inflows$irr)[j]
+          # translate flow regime dates into rows in regime_tab
+          flow_m3d = fj_to_tribs$trib_min_m3day[trib_flow_picker]
+          flow_start = min_flows$start_date[i]
+          flow_end = min_flows$end_date[i]
+
+          assign_these_rows = regime_tab$example_dates >= flow_start &
+            regime_tab$example_dates <= flow_end
+          # assign regime flow value to the designated dates
+          regime_tab$new_col[assign_these_rows] = flow_m3d
+        }
+        colnames(regime_tab)[ncol(regime_tab)] = colnames(subws_inflows$irr)[j]
+      }
+
+      # Diagnostics
+      # for(j in 3:ncol(regime_tab)){
+      #   if(j == 3){
+      #     plot(regime_tab$example_dates, regime_tab[,j] / 2446.58, col = j, type = "l",
+      #          ylim = c(0, max(regime_tab[,3:ncol(regime_tab)])/2446.58),
+      #          xlab = "Date in WY 2020", ylab = "Flow (cfs)")
+      #     grid()
+      #   } else {
+      #       lines(regime_tab$example_dates, regime_tab[,j] / 2446.58, col = j)
+      #     }
+      #
+      # }
+      regime_tab_filename = file.path(data_dir["ref_data_dir","loc"], paste0("FJ Emergency Flows 2025 Converted to Median Trib Flow_",Sys.Date(),".csv"))
+      write.csv(regime_tab, regime_tab_filename,
+                row.names = F)
+
+    } else {
+      ref_files = list.files(data_dir["ref_data_dir","loc"])
+      latest_regime_tab_filename = ref_files[grep(x = ref_files,
+                                                  pattern = "FJ Emergency Flows 2025 Converted to Median Trib Flow")]
+      regime_tab = read.csv(file.path(data_dir["ref_data_dir","loc"],latest_regime_tab_filename))
+    }
+
+    subws_inflows <- streamflow_curtailment(flows = subws_inflows,
+                                            min_flow_regime = regime_tab)
+  } else if(scenario_id == "none") {
+    # do nothing, return unaltered inflows
+  }   else {
+    stop(paste('Unrecognized scenario:',scenario_id,'. Must be one of "basecase","none","eflows25_div_lims"'))
+  }
+
+
+  return(subws_inflows)
+
+}
+
+#-------------------------------------------------------------------------------------------------#
+
+#' Alter tributary inflow file to reflect storage and releases from a reservoir
+#'
+#' @param sfr_component Dataframe of months and either: 1) subwatershed inflow partition
+#' fractions (see \code{\link{gen_monthly_sfr_flow_partition}}), or 2) inflows available
+#' for irrigation, or 3) inflows NOT available for irrigation (e.g. reserved for environmental
+#' flows) (for items 2 and 3 see \code{\link{process_sfr_inflows}}).
+#' @param output_dir directory to write the files to
+#' @param filename Writes to this filename
+#' @param verbose T/F write status info to console (default: TRUE)
+#'
+#' @return None, writes file to disk
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' subws_inflows <- process_sfr_inflows(scen, "daily_tributary_streamflow.txt")
+#' write_SWBM_SFR_inflow_files(subws_inflows$non_irr, '.', "subwatershed_irrigation_inflows.txt")
+#' }
+alter_trib_inflows_for_reservoir <- function(sfr_component,
+                                             output_dir,
+                                             filename,
+                                             verbose=TRUE) {
+  # see if daily
+  daily = FALSE
+  if (mean(diff.Date(sfr_component[,1]))) { daily = TRUE }
+
+  # if(filename=="SFR_subws_flow_partitioning.txt"){
+  if (daily) {
+    # Really no reformat necessary
+    #sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%d-%b-%Y'))
+  } else {
+    sfr_component[1] <- as.character(format(x = sfr_component[1], format= '%b-%Y'))
+  }
+
+  write_SWBM_file(sfr_component, output_dir, filename, verbose)
+
+
+
+
+
+
+
+  stm = read.table(file1, header = T)
+
+  # Very simple reservoir simulation
+
+  #Convert values to AF per day
+  stm_AFday = stm
+  m3day_to_AFday = 1/4046.86 * 3.28084
+
+  convert_these_columns = grepl(pattern = "m3day", x = colnames(stm_AFday))
+  stm_AFday[,convert_these_columns] = stm[,convert_these_columns] * m3day_to_AFday
+  #update column names
+  colnames(stm_AFday)[convert_these_columns] =
+    sub("m3day", "AFday" , colnames(stm_AFday)[convert_these_columns])
+
+  #Reservoir parameters
+  cfs_to_AFday = 2.29568411*10^-5 * 86400
+  cfs_goal = 30
+  D_daily = cfs_goal * cfs_to_AFday # Target demand during dry season (fish flow releases)
+  # Assume demand during the dry season is about 20 cfs for ~150 days (July 1 to Dec 1)
+  K = D_daily * 150 # Reservoir capacity. Rough estimate: low-flow releases for dry season.
+  # TO DO: check how realistic this would be (6 TAF capacity?)
+
+  #Initialize inflow time series
+  Q_daily_avg = stm_AFday[,grepl(pattern = reservoir_scenario, x = colnames(stm_AFday))]
+  Q = Q_daily_avg * num_days # convert to monthly volume, AF/month
+  nmonth = length(Q) # number of months
+
+  S = rep_len(0, nmonth)  # Storage
+  R = rep_len(0, nmonth)  # Discharge from reservoir
+  shortage = rep_len(0, nmonth)
+
+  # S[1] = K # start simulation at full
+  # R[1] = D_daily*num_days[1]  # first month meets demand
+  # met_demand = 1  # counter
+
+  S[1] = 0 # start simulation at empty
+  R[1] = 0 #
+  met_demand = 0  # counter
+
+
+  for(t in 2:nmonth){
+
+    # new storage: mass balance. Max value is K
+    S[t] = min(S[t-1] + Q[t-1] - R[t-1], K)
+    # Calculate monthly demand
+    D = D_daily*num_days[t]
+
+    if(t%%12 %in% 0:3){
+      # In Dec-Mar, release the minimum (demand) until the reservoir is full, then let flow bypass reservoir
+      if(S[t] + Q[t] <= K){
+        R[t] = min(D, S[t]+Q[t])               # If storage + inflow is less than capacity, release minimum (D)
+      }else{
+        R[t] = S[t] + Q[t] - K # If storage is full or nearly full, release inflow or fraction of inflow
+      }
+    }
+
+    if(t%%12 %in% 4:6){
+      # In Apr-June, let flow bypass reservoir for irrigation (but keep stored volume in reserve)
+      R[t] = Q[t]
+    }
+
+    if(t%%12 %in% 7:11){
+      # In July-Nov, release water (no test for low-flow threshold)
+      # release demand amount if enough water is available to meet demand
+      if((S[t] + Q[t]) > D){
+        R[t] = D
+        met_demand = met_demand + 1
+      } else {
+        # release all available water if not enough to meet demand
+        R[t] = S[t] + Q[t]
+      }
+    }
+    # after each month, calculate shortage
+    shortage[t] = max(D - R[t], 0)
+  }
+
+  # Evaluate reservoir performance in terms of meeting flow release target
+  dry_months = sum(1:nmonth%%12 %in% 7:11) #number of months in which we want to meet demand
+  reliability = met_demand / dry_months
+
+  # Plot inflow, discharge, and storage
+  plot(model_months, Q/num_days/cfs_to_AFday, type = "l", ylab = "Inflow, cfs")
+  plot(model_months, R/num_days/cfs_to_AFday, type = "l", ylab = "Discharge, cfs")
+  plot(model_months, S, type = "l", ylab = "Storage, AF", main = paste(reservoir_scenario, cfs_goal, "cfs demand"))
+
+  # Revise streamflow_input.txt
+
+  # Replace the inflow on the designated tributary with the outflow from the reservoir
+  replace_this_column = grepl(pattern = reservoir_scenario, x = colnames(stm_AFday))
+  stm_AFday[,replace_this_column] = R / num_days # convert to AF/day
+
+  #Convert back to m3day
+  stm_m3day = stm_AFday
+  stm_m3day[,convert_these_columns] = stm_AFday[,convert_these_columns] / m3day_to_AFday
+  #update column names
+  colnames(stm_m3day)[convert_these_columns] =
+    sub( "AFday", "m3day", colnames(stm_AFday)[convert_these_columns])
+
+
+  write.table(stm_m3day,file = file2, append = F, quote = F, row.names = F, col.names = T, sep = '\t')
+
+}
+
 
 #-------------------------------------------------------------------------------------------------#
 #' Build Field-value Data Frame
@@ -841,15 +1146,21 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #' Builds a stress-period-by-field landcover assignment table for the Soil Water Budget Model (SWBM),
 #' according to a chosen land-use scenario.
 #'
-#' @param scenario_id Character. Scenario identifier; one of `"basecase"`, `"nv_gw_mix"`, or `"nv_all"` (case-insensitive).
+#' @param scenario_id Character. Scenario identifier; one of a list of recognized scenarios (case-insensitive).
+#' @param landcover_id Character. Scenario category, pertaining to land use type.
 #'   - `"basecase"`: start from each polygon's default SWBM_LU code and apply an
 #'     alfalfa to grain rotation on alfalfa-coded fields every \code{alfalfa_grain_rotate_years}.
-#'   - `"nv_all"`: replace *all* irrigated landcover codes with the native vegetation code.
-#'   - `"nv_gw_mix"`: replace codes with native vegetation *only* on fields whose
-#'     water source is groundwater (2), mixed (3), or unknown (999).
+#'   - `"natveg_all"`: replace *all* irrigated landcover codes with the native vegetation code.
+#'   - `"natveg_expanded"`: replace *some* irrigated landcover codes with the native vegetation code, based on
+#'   existing crop type, random number of acres to replace, or water source (options are groundwater [2], mixed [3], or unknown [999]).
+#'   - `"crop_change"`: replace irrigated crop acres with a different crop.
+#'
 #' @param start_date Date. Model start date (first stress period).
 #' @param end_date   Date. Model end date (last stress period).
 #' @param alfalfa_grain_rotate_years Integer. Rotation interval in years for alfalfa fields. Default: `8`.
+#' @param grain_from_alf_acres For crop change scenarios: basecase-alfalfa acreage converted to permanent grain in scenario. Default: `NA`.
+#' @param grain_from_pas_acres For crop change scenarios: basecase-pasture acreage converted to permanent grain in scenario. Default: `NA`.
+#' @param irr_to_natveg_acres For expanded native vegetation scenarios: basecase-irrigated acreage converted to native vegetation in scenario. Default: `NA`.
 #' @param polygon_table_file Character. Path to the polygon table file. Must contain at least
 #'   columns \code{SWBM_id}, \code{SWBM_LU}, and \code{WATERSOURC}.
 #'   Default: \code{file.path(data_dir["time_indep_dir","loc"], "polygons_table.txt")}.
@@ -858,7 +1169,7 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #'   Default: \code{file.path(data_dir["time_indep_dir","loc"], "landcover_table.txt")}.
 #'
 #' @details
-#' 1. Validates \code{scenario_id} against \code{c("basecase","nv_gw_mix","nv_all")}.
+#' 1. Validates \code{scenario_id} against recognized scenarios. Current list: \code{c('nv_gw_mix','natveg_low_all', 'natveg_high_all','grain_6k','grain_12k', 'grain_14k')}.
 #' 2. Reads the polygon table (\code{polygon_table_file}) and landcover descriptions
 #'    (\code{landcover_desc_file}). Warns if \code{SWBM_id} values are duplicated or missing.
 #' 3. Calls \code{swbm_build_field_value_df(nfields, start_date, end_date)} to create a
@@ -869,10 +1180,15 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #'      * Start with each field's baseline \code{SWBM_LU} from \code{polygon_table_file}.
 #'      * For fields with \code{SWBM_LU == 1} (alfalfa), apply an 8-year (by default)
 #'        alfalfa to grain rotation.  Field 1 rotates in years 1,9,...; field 2 in years 2,10,... etc.
-#'    - **nv_all**:
+#'    - **natveg_all**:
 #'      * Identify all \code{Landcover_Name}s matching `"Irrigated"` and replace their codes
 #'        with the native vegetation code.
-#'    - **nv_gw_mix**:
+#'    - **natveg_expanded**:
+#'      * Identify all \code{Landcover_Name}s matching `"Irrigated"` and replace their codes
+#'      with the native vegetation code using a set of rules based on existing crop type,
+#'      random number of irrigated acres to replace, or water source (options are groundwater (2),
+#'       mixed (3), or unknown (999)). Set of rules used determined by \code[scenario_id]
+#'    - **crop_change**:
 #'      * For fields whose water source is groundwater (2), mixed (3), or unknown (999),
 #'        set their landcover code to the native vegetation code for the entire period
 #'        (Unknown water source fields are automatically assumed to be GW in SWBM).
@@ -907,20 +1223,27 @@ write_muni_pumping_file <- function(start_date, n_stress, output_dir,
 #' )
 #' }
 create_SWBM_landcover_df <- function(scenario_id = "basecase",
+                                     landcover_id = "basecase",
                                      start_date,
                                      end_date,
                                      poly_df,
                                      landcover_df,
                                      alfalfa_grain_rotate_years = 8,
-                                     grain_from_alf_acres = NA, grain_from_pas_acres = NA
+                                     grain_from_alf_acres = NA,
+                                     grain_from_pas_acres = NA,
+                                     irr_to_natveg_acres = NA
 )
 {
-
-  recognized_scenarios=c('basecase','nv_gw_mix', 'nv_all',
-                         'grain_6k','grain_12k', 'grain_14k',
-                         'irr_eff_0.1', 'irr_eff_0.2', 'irr_eff_minus_0.1')
-  if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
-    stop("Warning: specified landuse scenario not recognized.")
+  if(landcover_id != "basecase"){
+    recognized_scenarios=c('nv_gw_mix',
+                           'natveg_low_all', 'natveg_high_all',
+                           'grain_6k','grain_12k', 'grain_14k',
+                           'natveg_low_4k', 'natveg_high_4k',
+                           'natveg_low_8k', 'natveg_high_8k',
+                           'natveg_low_12k', 'natveg_high_12k')
+    if(!(tolower(scenario_id) %in% tolower(recognized_scenarios))){
+      stop("Warning: specified landuse scenario not recognized.")
+    }
   }
 
   # Read in landcover, polygon files for reference of
@@ -936,7 +1259,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
                                        model_start_date = start_date,
                                        model_end_date = end_date)
 
-  # Build default (time-invarying) land use table
+  # Build default (time-invarying) basecase land use table
   for(i in 1:num_unique_fields){
     field_id = poly_df$SWBM_id[i]
     # set entire model period to the baseline land use from reference poly_df file
@@ -945,8 +1268,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
 
   # Write land cover file for scenarios with basecase land use
   # i.e., no major crop changes or native vegetation coverage changes
-  if(scenario_id %in% c("basecase",
-                        'irr_eff_0.1', 'irr_eff_0.2', 'irr_eff_minus_0.1')){
+  if(tolower(landcover_id) ==  "basecase"){
 
     # Basecase scenario -------------------------------------------------------
 
@@ -1094,7 +1416,7 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
       # For grain_12k, seems like we're getting closer to 11.5k acres
     }
 
-  } else if(scenario_id == "nv_all"){
+  } else if(scenario_id %in% c("natveg_low_all","natveg_high_all")){
 
     # All Nat Veg (No Irrigated Ag) Scenario -----------------------------------
 
@@ -1108,6 +1430,42 @@ create_SWBM_landcover_df <- function(scenario_id = "basecase",
     }
 
     landcover_output = field_df
+  } else if(landcover_id == "natveg_expanded"){
+
+    #Irr. Acres Randomly Assigned to Nat Veg Scenario (for full model period) -----------------------------------
+    # Land use is static for all time periods, except alfalfa-grain rotation
+    codes_to_replace = landcover_df$id[grep(pattern = "Irrigated", landcover_df$Landcover_Name)]
+    natveg_code = landcover_df$id[grep(pattern = "Native", landcover_df$Landcover_Name)]
+
+    #Set initial fields equal to unchanging default
+    landcover_output = field_df
+
+    # Convert basecase irrigated acres to native vegetation, selecting randomly
+    # until the target acreage is reached
+    set.seed(1)
+    basecase_acre_check = aggregate(poly_df$MF_Area_m2/4046.86, by=list(poly_df$SWBM_LU), FUN = sum)  # convert m2 to acres
+    irr_to_natveg_target = irr_to_natveg_acres * 4046.86 # convert from acres to m2
+    irr_to_natveg_converted = 0
+    irr_poly_list = poly_df$SWBM_id[poly_df$SWBM_LU %in% codes_to_replace] # polygon IDs covered by irr.ag in the basecase land use
+    while(irr_to_natveg_converted < irr_to_natveg_target){
+      random_i = sample(1:length(irr_poly_list), size = 1)
+      random_poly_id = irr_poly_list[random_i]
+      #assign output land use to grain for this field
+      landcover_output[,paste0("ID_",random_poly_id)] = natveg_code # assign native vegetation
+      # add acreage to acreage counter
+      irr_to_natveg_converted = irr_to_natveg_converted + poly_df$MF_Area_m2[poly_df$SWBM_id==random_poly_id]
+      # remove polygon from list of available alfalfa polygons
+      irr_poly_list = irr_poly_list[irr_poly_list != random_poly_id]
+    }
+
+    # Stored code for time-varying nat-veg replacement
+    # for(i in 1:(ncol(field_df)-1)){
+    #   field_vals = field_df[,i+1]
+    #   field_vals[field_vals %in% codes_to_replace] = natveg_code
+    #   field_df[,i+1] = field_vals
+    # }
+
+    # landcover_output = field_df
   } else if(scenario_id == "nv_gw_mix"){
 
     # Nat Veg on GW or Mixed-water-source fields (Only Surface Water-Irrigated Ag) Scenario -----------------------------------
@@ -1211,19 +1569,8 @@ write_SWBM_landcover_file <- function(landcover_df, output_dir, filename="polygo
 write_SWBM_landcover_desc_file <- function(landcover_desc,
                                            output_dir,
                                            filename = "landcover_table.txt",
-                                           verbose  = TRUE,
-                                           irr_eff_change = NA
+                                           verbose  = TRUE
 ) {
-
-  if(!is.na(irr_eff_change)){
-    landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] + irr_eff_change
-    landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] + irr_eff_change
-    landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] = # add irrigation change to all non-0 efficiencies
-      landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] + irr_eff_change
-  }
-
 
   col_names <- names(landcover_desc)
   as_chr    <- function(x) if (is.factor(x)) as.character(x) else as.character(x)
@@ -1512,6 +1859,13 @@ apply_native_veg_ET_override <- function(et_list,
 #' head(mar_df)
 #' }
 create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
+
+  if(mar_scenario != "basecase"){
+    recognized_scenarios=c('none','maxMAR_fields24','maxMAR_fields24_2024only')
+    if(!(tolower(mar_scenario) %in% tolower(recognized_scenarios))){
+      stop("Warning: specified MAR scenario not recognized.")
+    }
+  }
   # Create blank field df
   mar_df <- swbm_build_field_value_df(model_start_date = start_date,
                                         model_end_date = end_date,
@@ -1525,7 +1879,7 @@ create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
     # Remove rows in mar_df that match the Stress_Periods, then combine
     mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar24$Stress_Period),]
     mar_df <- rbind(mar_df, mar24)
-  } else if (mar_scenario=='max24') {
+  } else if (mar_scenario=='maxMAR_fields24_2024only') {
     # Read in 2024 MAR (see .\Scripts\Stored_Analyses\2024_MAR.R)
     mar24 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_24max.csv'), header=T)
     mar24$Stress_Period <- as.Date(mar24$Stress_Period)
@@ -1533,6 +1887,18 @@ create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
     # Remove rows in mar_df that match the Stress_Periods, then combine
     mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar24$Stress_Period), ]
     mar_df <- rbind(mar_df, mar24)
+  } else if (mar_scenario=='maxMAR_fields24') {
+    # Repeats the maximum permitted divertable MAR for 2024, on the fields
+    # used for the MAR 2024 pilot project, and applies that MAR to all water years
+
+    # Read in 2024 MAR (see .\Scripts\Stored_Analyses\2024_MAR.R)
+    mar24 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_24max.csv'), header=T)
+    mar24$Stress_Period <- as.Date(mar24$Stress_Period)
+    # assumes one water year of MAR reported
+    repetition_indices = rep(1:12, ceiling( nrow(mar_df)/12))[1:nrow(mar_df)]
+    mar_df[,2:ncol(mar_df)] = mar24[repetition_indices, 2:ncol(mar24)]
+    # repeats mar24 x times
+
   } else if (mar_scenario=='none') {
     # Do nada
   } else {
@@ -1584,7 +1950,7 @@ write_SWBM_MAR_depth_file <- function(mar_df, output_dir, filename = "MAR_depth.
 #'
 #' @param start_date Start date of the simulation (as a Date object).
 #' @param end_date End date of the simulation (as a Date object).
-#' @param scenario_id The curtailment scenario (anything but `basecase` returns a dataframe of zeros)
+#' @param curtail_id The curtailment scenario (anything but `basecase` returns a dataframe of zeros)
 #'
 #' @return A \code{data.frame} whose first column is \code{Stress_Period} (Date)
 #'   and whose remaining columns are named \code{ID_<fieldID>} with Curtailment fractions
@@ -1608,17 +1974,21 @@ write_SWBM_MAR_depth_file <- function(mar_df, output_dir, filename = "MAR_depth.
 #' create_SWBM_curtailment_df(start_date = as.Date("2020-10-01"),
 #'                            end_date = as.Date("2024-09-30"),
 #'                            scenario_id = "basecase")
-create_SWBM_curtailment_df <- function(start_date, end_date, scenario_id) {
+create_SWBM_curtailment_df <- function(start_date, end_date,
+                                       curtail_id = "basecase") {
 
   # generate a stress-period-by-field table (wide format)  for saving to output
   curtail_output <- swbm_build_field_value_df(model_start_date = start_date,
                                               model_end_date = end_date,
-                                              default_values = 0)
+                                              default_values = 0
+                                              #,scenario_id
+                                              )
 
-  no_curtail_scenarios = c("natveg_all_lowET", "natveg_all_highET", "curtail_00_pct_all_years")
-  basecase_curtail_scenarios = c("basecase", "basecase_noMAR", "maxMAR2024")
+  if(curtail_id=="none"){
+    # do nothing; curtail values are 0 for all fields for all periods
+  }
 
-  if(scenario_id == "basecase"){
+  if(curtail_id == "basecase"){
     # Read in 2021/2022 LCS/curtailments (see SVIHM/Scripts/Stored_Analyses/2021_2022_LCS_Curtailments.R)
     curt21_22 <- read.csv(file.path(data_dir["ref_data_dir","loc"], 'Curtail_21_22.csv'))
     curt21_22$Stress_Period <- as.Date(curt21_22$Stress_Period)
@@ -1635,6 +2005,7 @@ create_SWBM_curtailment_df <- function(start_date, end_date, scenario_id) {
     curtail_output <- curtail_output[!curtail_output$Stress_Period %in% c(curt21_22$Stress_Period, curt23$Stress_Period, curt24$Stress_Period), ]
     curtail_output <- rbind(curtail_output, curt21_22, curt23, curt24)
   }
+
 
   # Ensure the result is sorted by Stress_Period
   curtail_output <- curtail_output[order(curtail_output$Stress_Period), ]

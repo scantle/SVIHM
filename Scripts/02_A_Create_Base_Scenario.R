@@ -11,6 +11,9 @@ library(sf)
 scen <- list(
   'name'             = 'basecase',     # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'basecase',     # Landcover scenario identifier
+  'curtail_id'       = 'basecase',     # curtailment scenario identifier
+  'mar_id'           = 'basecase',     # MAR scenario identifier
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.4384,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.4,
@@ -48,13 +51,19 @@ num_days_df <-  data.frame("stress_period" = 1:scen$num_stress_periods, ndays = 
 subws_inflow_filename <- file.path(scen$input_dir,"daily_tributary_streamflow.txt")
 subws_inflows <- process_sfr_inflows(scen, subws_inflow_filename)
 
-# Historical Streamflow Curtailments for 2021, 2022
-subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2021-09-10", date_end = "2021-10-25")
-subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start = "2022-07-01", date_end = "2022-12-27")
+# Apply basecase surface diversion curtailments in two years or make scenario-specific
+# alterations to total inflows or non-irrigation flow designations
+subws_inflows = alter_SWBM_sfr_inflows(subws_inflows, scen$name)
+
+# analysis of what constitutes "low flows". try multiple thresholds?
+# do all trib flows go low together at the same time? if so could do threshold of combined trib inflows
+# Might need a new function. low flow curtailment and/or just guaranteed E-flows preserved. For the 2nd one,
+# going to need some analysis of which trib flows correspond to which flows an the FJ gauge.
 
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
-landcover_df <- create_SWBM_landcover_df(scenario_id = 'basecase',
+landcover_df <- create_SWBM_landcover_df(scenario_id = scen$name,
+                                         landcover_category = scen$landcover_id,
                                          scen$start_date,
                                          scen$end_date,
                                          polygon_fields,
@@ -79,14 +88,18 @@ landcover_desc[nat_id, 'RD_Mult'] <- scen$natveg_rd_mult
 daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg_kc=scen$natveg_kc)
 
 # MAR applications by field by month
-mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario='basecase')
+mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date,
+                                    scenario_id = scen$name,
+                                    mar_scenario = scen$mar_id)
 
 # Mountain Front Recharge (water passed through SWBM to MODFLOW)
 mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Irrigation curtailment fractions (as fraction of calculated demand) by field by month
 # Also includes Local Cooperative Solutions (LCSs) that reduce water use (implemented as curtailment)
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id='basecase')
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date,
+                                         scenario_id= scen$name,
+                                         curtail_id = scen$curtail_id)
 
 # ET Correction file
 # Includes LCSs that essentially reduce evaporated water losses

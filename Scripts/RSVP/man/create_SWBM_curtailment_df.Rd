@@ -4,14 +4,14 @@
 \alias{create_SWBM_curtailment_df}
 \title{Create SWBM Curtailment Fractions File for SWBM}
 \usage{
-create_SWBM_curtailment_df(start_date, end_date, scenario_id)
+create_SWBM_curtailment_df(start_date, end_date, curtail_id = "basecase")
 }
 \arguments{
 \item{start_date}{Start date of the simulation (as a Date object).}
 
 \item{end_date}{End date of the simulation (as a Date object).}
 
-\item{scenario_id}{The curtailment scenario (anything but \code{basecase} returns a dataframe of zeros)}
+\item{curtail_id}{The curtailment scenario (anything but \code{basecase} returns a dataframe of zeros)}
 }
 \value{
 A \code{data.frame} whose first column is \code{Stress_Period} (Date)

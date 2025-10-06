@@ -9,8 +9,11 @@ library(sf)
 
 # Scenario Settings -----------------------------------------------------
 scen <- list(
-  'name'             = 'natveg_high',  # Scenario name, will be part of directory name
+  'name'             = 'natveg_high_all',  # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'nv_all',     # Landcover scenario identifier
+  'curtail_id'       = 'none',     # curtailment scenario identifier
+  'mar_id'           = 'none',     # MAR scenario identifier
   'natveg_kc'        = 1.0,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.0,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.0,
@@ -76,14 +79,14 @@ landcover_desc[nat_id, 'RD_Mult'] <- scen$natveg_rd_mult
 daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg_kc=scen$natveg_kc)
 
 # MAR applications by field by month
-mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario='none')
+mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario=scen$mar_id)
 
 # Mountain Front Recharge (water passed through SWBM to MODFLOW)
 mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Irrigation curtailment fractions (as fraction of calculated demand) by field by month
 # Also includes Local Cooperative Solutions (LCSs) that reduce water use (implemented as curtailment)
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id='none')
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id= scen$curtail_id)
 
 # ET Correction file
 # Includes LCSs that essentially reduce evaporated water losses

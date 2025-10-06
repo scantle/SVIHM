@@ -4,7 +4,14 @@
 \alias{streamflow_curtailment}
 \title{Apply a Daily Streamflow Curtailment to Irrigation Inflows}
 \usage{
-streamflow_curtailment(flows, percent, date_start, date_end, streams = "ALL")
+streamflow_curtailment(
+  flows,
+  percent = NA,
+  min_flow_regime = NA,
+  date_start,
+  date_end,
+  streams = "ALL"
+)
 }
 \arguments{
 \item{flows}{A list with two data frames:
@@ -14,6 +21,8 @@ streamflow_curtailment(flows, percent, date_start, date_end, streams = "ALL")
 }}
 
 \item{percent}{Numeric in [0,1]; the same fraction of \strong{each day's} flow to move.}
+
+\item{min_flow_regime}{Dataframe specifying the dates and flows of a minimum flow regime to be designated for non-irrigation flows.}
 
 \item{date_start}{Date or character; first day (inclusive) of curtailment window.}
 

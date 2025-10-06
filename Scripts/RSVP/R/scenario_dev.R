@@ -95,13 +95,25 @@ scenario_setup <- function(scen, start_year=1991) {
   scen$full_name <- paste(scen$name,scen$type,scen$end_date,sep="_")
   scen$scen_dir <- file.path(data_dir['scenario_dir','loc'], scen$full_name)
 
+  # SCENARIOS
   # Default inputs to account for scenario differences
   # if not already declared in scenario .R script
 
+  # Native vegetation scenarios - randomly convert irrigated acres to native veg
+  if(!("irr_to_natveg_acres" %in% names(scen))){scen$irr_to_natveg_acres = NA}
   # Crop change scenarios - convert acreage to permanent grain
   if(!("grain_from_alf_acres" %in% names(scen))){scen$grain_from_alf_acres = NA}
   if(!("grain_from_pas_acres" %in% names(scen))){scen$grain_from_pas_acres = NA}
+  # Irrigation efficiency change scenarios - uniform global change to irr. eff.
   if(!("irr_eff_change" %in% names(scen))){scen$irr_eff_change = NA}
+  # MAR scenario - no MAR, basecase historical MAR, or specified MAR scenario?
+  if(!("mar_id" %in% names(scen))){scen$mar_id = "basecase"}
+  # Curtailment scenario - no curtail (water to full crop demand),
+  # basecase historical curtailment (starting wy 2021), or specified curtailment scenario?
+  if(!("curtail_id" %in% names(scen))){scen$curtail_id = "basecase"}
+  if(!("landcover_id" %in% names(scen))){scen$landcover_id = "basecase"}
+  # Specify scenario for stream inflow (and any flows designated for non-irrigation, in-stream environmental uses)
+  if(!("stream_inflow_id" %in% names(scen))){scen$stream_inflow_id = "basecase"}
 
   return(scen)
 }

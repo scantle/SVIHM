@@ -11,6 +11,9 @@ library(sf)
 scen <- list(
   'name'             = 'irr_eff_minus_0.1',    # Scenario name, will be part of directory name
   'type'             = 'update',       # Basecase, Update, or PRMS - where to get meteorological inputs
+  'landcover_id'     = 'basecase',     # Landcover scenario identifier
+  'curtail_id'       = 'basecase',     # curtailment scenario identifier
+  'mar_id'           = 'basecase',     # MAR scenario identifier
   'natveg_kc'        = 0.6,            # Native vegetation daily ET coefficient, default = 0.6
   'natveg_rd'        = 2.4384,         # Native vegetation rooting depth (m), default = 2.4384 (8 ft)
   'natveg_rd_mult'   = 1.4,
@@ -56,6 +59,7 @@ subws_inflows <- streamflow_curtailment(subws_inflows, percent = 1, date_start =
 # Land use by field by month
 # Valid scenario_ids are basecase, nv_gw_mix, and nv_all
 landcover_df <- create_SWBM_landcover_df(scenario_id = scen$name,
+                                         landcover_id = scen$landcover_id,
                                          start_date = scen$start_date,
                                          end_date = scen$end_date,
                                          poly_df = polygon_fields,
@@ -69,10 +73,21 @@ cell_et <- read_SWBM_ET_inputs(file_cells = file.path(data_dir["time_indep_dir",
 # Matrix mapping SWBM fields to MODFLOW cells
 cell_recharge  <- as.matrix(read.table(header = F,  file = file.path(data_dir["time_indep_dir","loc"], "recharge_zones.txt")))
 
-# Update Native Vegetation Rooting Depth
+# Update Landcover Description Table
+# Native Vegetation Rooting Depth
 nat_id <- landcover_desc[landcover_desc['Landcover_Name']=='Native_Vegetation', 'id']
 landcover_desc[nat_id, 'RootDepth'] <- scen$natveg_rd
 landcover_desc[nat_id, 'RD_Mult'] <- scen$natveg_rd_mult
+# Irrigation efficiency changes
+if(!is.na(scen$irr_eff_change)){
+  landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_Flood[landcover_desc$IrrEff_Flood>0] + scen$irr_eff_change
+  landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_WL[landcover_desc$IrrEff_WL>0] + scen$irr_eff_change
+  landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] = # add irrigation change to all non-0 efficiencies
+    landcover_desc$IrrEff_CP[landcover_desc$IrrEff_CP>0] + scen$irr_eff_change
+}
+
 
 #-- Crop coefficients (specified daily, change seaonally for some crops)
 daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg_kc=scen$natveg_kc)
@@ -81,16 +96,13 @@ daily_kc_df <- create_daily_crop_coeff_df(scen$start_date, scen$end_date, natveg
 mfr_df <- create_SWBM_MFR_df(num_days_df)
 
 # Scenario contains no MAR or LCS interventions
-mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario='none')
-curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, scenario_id='none')
+mar_depth_df <- create_MAR_depth_df(scen$start_date, scen$end_date, mar_scenario= scen$mar_id)
+curtail_df <- create_SWBM_curtailment_df(scen$start_date, scen$end_date, curtail_id = scen$curtail_id)
 et_corr <- create_SWBM_ET_correction_df(scen$start_date, scen$end_date, scenario_id='none')
 
 # Scenario-specific commands (please read documentation of commands) - Uncomment if desired
 # polygon_fields <- SWBM_no_pumping(polygon_fields)
 # cell_et <- apply_native_veg_ET_override(cell_et, cell_recharge, landcover_df, landcover_desc, scen$natveg_extD)
-
-# 100% Curtailment all the time
-curtail_df <- SWBM_monthly_curtailment(curtail_df, scen$start_date, scen$end_date, percent=1)
 
 # Optional: Plots for QA/QC
 # plot_landcover(landcover_df, landcover_desc, stress_period="1990-10-01")
@@ -110,8 +122,7 @@ write_SWBM_MAR_depth_file(mar_depth_df, working_dir)
 write_SWBM_MFR_file(mfr_df, working_dir)
 write_SWBM_curtailment_file(curtail_df, working_dir)
 write_SWBM_polygon_file(polygon_fields, working_dir)
-write_SWBM_landcover_desc_file(landcover_desc, working_dir,
-                               irr_eff_change = scen$irr_eff_change) # apply irrigation efficiency change to all irr. types
+write_SWBM_landcover_desc_file(landcover_desc, working_dir)
 write_SWBM_ET_inputs(cell_et, working_dir)
 write_SWBM_ET_correction_file(et_corr, working_dir)
 

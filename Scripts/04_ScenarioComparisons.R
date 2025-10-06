@@ -13,14 +13,20 @@ origin_date <- as.Date('1990-09-30')
 create_sp_charts = FALSE  # Many SPs, very slow
 
 # Lists of scenarios
-scen_names <- c('Basecase', 'Natveg', 'PRMS')
 rel_dir <- '../..'
-scen_dirs <- file.path(rel_dir, c('Run_baseupdate', 'Run_natveg', 'Run_prms'))
+# scen_names <- c('Basecase', 'Natveg', 'PRMS')
+# scen_dirs <- file.path(rel_dir, c('Run_baseupdate', 'Run_natveg', 'Run_prms'))
 
 update_dir <- latest_dir(data_dir['update_dir','loc'])
 plot_data_dir <- file.path('../../SVIHM_Input_Files/reference_data_for_plots/')
 
 out_dir = data_dir["scenario_dir","loc"] #file.path("../../")
+
+# Alternate scenario directories list if Run folders have already been moved to Scenarios folder
+scen_folders = list.files(path = out_dir)[grepl(pattern = "Run", x = list.files(path=out_dir))]
+scen_dirs = file.path(out_dir, scen_folders)
+scen_names = gsub(x = scen_folders, pattern = "Run_", replacement="")
+scen_names = gsub(x=scen_names, pattern = " 2025-07-31", replacement="")
 
 if (!dir.exists(out_dir)) {dir.create(out_dir, recursive = T)}
 
@@ -93,6 +99,36 @@ write.csv(fj_comb[,c('Date',scen_names)], file.path(out_dir,'scen_combined_fj.cs
 
 #-------------------------------------------------------------------------------------------------#
 
+#-------------------------------------------------------------------------------------------------#
+# Summarize parameters in svihm_parameter_table
+scen_update_dirs = list.dirs(path = out_dir,
+                             recursive = F)[!grepl(pattern = "Run",
+                                                   x = list.dirs(path=out_dir,
+                                                                 recursive = F))]
+# for each scenario, read in scen_param file, and combine
+
+for(i in 1:length(scen_update_dirs)){
+  scen_files = list.files(scen_update_dirs[i])
+  has_param_csv = grepl(x = scen_files, pattern="parameter_summary")
+  if(sum(has_param_csv)>0){
+    param_csv = read.csv(file.path(scen_update_dirs[i],scen_files[has_param_csv]))
+    if(exists("param_csv_out")){
+      # check for new columns in next scenario
+      new_cols = setdiff(colnames(param_csv), colnames(param_csv_out))
+      # add new columns (will have no effect if no new cols)
+      param_csv_out[,new_cols] = NA
+      # what columns exist in the running table that don't exist in the current scenario param table
+      existing_extra_cols = setdiff(colnames(param_csv_out), colnames(param_csv))
+      param_csv[,existing_extra_cols] = NA
+      param_csv_out = rbind(param_csv_out, param_csv)
+    }
+    if(!exists("param_csv_out")){param_csv_out = param_csv}
+  }
+}
+
+write.csv(param_csv_out, file.path(out_dir,'scenarios_param_summary.csv'), row.names = F)
+
+#-------------------------------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#
 # Budget comparison (only can do two models at a time)
