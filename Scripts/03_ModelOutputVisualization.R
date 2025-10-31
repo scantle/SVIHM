@@ -18,7 +18,7 @@ origin_date <- as.Date('1990-09-30')  # Day zero
 create_sp_charts = FALSE  # Many SPs, very slow
 
 # Directories
-run_dir       <- file.path('../../Run_basecase 2025-07-31/')
+run_dir       <- file.path('../../Run/')
 swbm_dir      <- file.path(run_dir, 'SWBM')
 mf_dir        <- file.path(run_dir, 'MODFLOW')
 update_dir    <- latest_dir(data_dir['update_dir','loc'])

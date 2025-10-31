@@ -1631,9 +1631,18 @@ create_SWBM_curtailment_df <- function(start_date, end_date, scenario_id) {
     curt24 <- read.csv(file.path(data_dir["ref_data_dir","loc"], 'Curtail_24.csv'))
     curt24$Stress_Period <- as.Date(curt24$Stress_Period)
 
+    # Read in 2024 LCS/curtailment
+    curt25 <- read.csv(file.path(data_dir["ref_data_dir","loc"], 'Curtail_25.csv'))
+    curt25$Stress_Period <- as.Date(curt25$Stress_Period)
+
+
     # Remove rows in curtail_output that match the Stress_Periods, then combine
-    curtail_output <- curtail_output[!curtail_output$Stress_Period %in% c(curt21_22$Stress_Period, curt23$Stress_Period, curt24$Stress_Period), ]
-    curtail_output <- rbind(curtail_output, curt21_22, curt23, curt24)
+    curtail_output <- curtail_output[!curtail_output$Stress_Period %in%
+                                       c(curt21_22$Stress_Period,
+                                         curt23$Stress_Period,
+                                         curt24$Stress_Period,
+                                         curt25$Stress_Period),]
+    curtail_output <- rbind(curtail_output, curt21_22, curt23, curt24, curt25)
   }
 
   # Ensure the result is sorted by Stress_Period
@@ -1727,6 +1736,14 @@ create_SWBM_ET_correction_df <- function(start_date, end_date, scenario_id) {
     # Remove rows in et_cor_output that match the Stress_Periods, then combine
     et_cor_output <- et_cor_output[!et_cor_output$Stress_Period %in% c(et_cor24$Stress_Period), ]
     et_cor_output <- rbind(et_cor_output, et_cor24)
+
+    # Read in 2025 LCS
+    et_cor25 <- read.csv(file.path(data_dir["ref_data_dir","loc"], 'ETcor_25.csv'))
+    et_cor25$Stress_Period <- as.Date(et_cor25$Stress_Period)
+
+    # Remove rows in et_cor_output that match the Stress_Periods, then combine
+    et_cor_output <- et_cor_output[!et_cor_output$Stress_Period %in% c(et_cor25$Stress_Period), ]
+    et_cor_output <- rbind(et_cor_output, et_cor25)
   }
 
   # Ensure the result is sorted by Stress_Period

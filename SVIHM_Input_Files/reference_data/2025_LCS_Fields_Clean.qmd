@@ -1,0 +1,82 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.24.1-Tisler">
+  <identifier>LCS_2025_06232025</identifier>
+  <parentidentifier></parentidentifier>
+  <language>ENG</language>
+  <type>dataset</type>
+  <title>LCS_2025_06232025</title>
+  <abstract>2023 STATEWIDE CROP MAPPING - PROVISIONAL
+Land use data is critically important to the work of the Department of Water Resources (DWR) and other California agencies. Understanding the impacts of land use, crop location, acreage, and management practices on environmental attributes and resource management is an integral step in the ability of Groundwater Sustainability Agencies (GSAs) to produce Groundwater Sustainability Plans (GSPs) and implement projects to attain sustainability. Land IQ was contracted by DWR to develop a comprehensive and accurate spatial land use database for the 2023 water year (WY 2023). The primary objective of this effort was to produce a spatial land use database with accuracies exceeding 95% using remote sensing, statistical, and temporal analysis methods. This project is an extension of the 2014, 2016, 2018, 2019, 2020, 2021, and 2022 land use mapping, which classified over 14 million acres of land into irrigated agriculture and urban area. Unlike the 2014 and 2016 datasets, the WY 2018, 2019, 2020, 2021, 2022 and 2023 datasets include multi-cropping and incorporates DWR ground-truth data from Siskiyou, Modoc, Lassen and Shasta counties. Land IQ integrated crop production knowledge with detailed ground truth information and multiple satellite and aerial image resources to conduct remote sensing land use analysis at the field scale. Individual fields (boundaries of homogeneous crop types representing cropped area, rather than legal parcel boundaries) were classified using a crop category legend and a more specific crop type legend. A supervised classification method using a random forest approach was used to classify delineated fields and was carried out county by county where training samples were available. Random forest approaches are currently some of the highest performing methods for data classification and regression. To determine frequency and seasonality of multiple-cropped fields, peak growth dates were determined for annual crops. Fields were attributed with DWR crop categories and included citrus/subtropical, deciduous fruits and nuts, field crops, grain and hay, idle, pasture, rice, truck crops, urban, vineyards, and young perennials. These categories represent aggregated groups of specific crop types in the Land IQ dataset. Accuracy was calculated for the crop mapping using both DWR and Land IQ crop legends. The overall accuracy result for the crop mapping statewide was 98.4% at the DWR Class level and 97.4% at the DWR Subclass level. Accuracy and error results varied among crop types. In particular, some less extensive crops that have very few validation samples may have a skewed accuracy result depending on the number and nature of validation sample points. DWR revised crops and conditions from the Land IQ classification were encoded using standard DWR land use codes added to feature attributes, and each modified classification is indicated by the value 'r' in the ?DWR_REVISE' data field. Polygons drawn by DWR, not included in Land IQ dataset receive the 'n' code for new. Boundary change (i.e. DWR changed the boundary that LIQ delivered could be split boundary) indicated by 'b'. Each polygon classification is consistent with DWR attribute standards, however some of DWR's traditional attribute definitions are modified and extended to accommodate unavoidable constraints within remote-sensing classifications, or to make data more specific for DWR's water balance computation needs. The original Land IQ classifications reported for each polygon are preserved for comparison, and are also expressed as DWR standard attributes. Comments, problems, improvements, updates, or suggestions about local conditions or revisions in the final data set should be forwarded to the appropriate Regional Office Senior Land Use Supervisor. Revisions were made if: - DWR corrected the original crop classification based on local knowledge and analysis, -PARTIALLY IRRIGATED CROPS Crops irrigated for only part of their normal irrigation season were given the special condition of ?X?, -In certain areas, DWR changed the irrigation status to irrigated or non-irrigated. Among those areas the special condition may have been changed to 'Partially Irrigated' based on image analysis and local knowledge, - young versus mature stages of perennial orchards and vineyards were identified (DWR added ?Young? to Special Condition attributes), - DWR determined that a field originally classified ?Idle? was actually cropped one or more times during the year, - the percent of cropped area was changed from the original acres reported by Land IQ (values indicated in DWR ?Percent? column), - DWR determined that the field boundary should have been split to better reflect separate crops within the same polygon and identified by a 'b' in the DWR_REVISED column, - The ?Mixed? was added to the MULTIUSE column refers to no boundary change, but percent of field is changed where more than one crop is found, - DWR identified a distinct early or late crop on the field before the main season crop (?Double? was added to the MULTIUSE column); if the 1st and 2nd sequential crops occupied different portions of the total field acreage, the area percentages were indicated for each crop). This dataset includes multicropped fields. If the field was determined to have more than one crop during the course of the water year, the order of the crops is sequential, beginning with Class 1. All single cropped fields will be placed in Class 2, so every polygon will have a crop in the Class 2 and CropType2 columns. In the case that a permanent crop was removed during the water year, the Class 2 crop will be the permanent crop followed by ?X? ? Unclassified fallow in the Class 3 column. In the case of Intercropping, the main crop will be placed in the Class 2 column with the partial crop in the Class 3 column. The column 'MAIN_CROP' was added in 2019 and has been continued through the 2023 dataset. This column indicates which field Land IQ identified as the main season crop for the water year representing the crop grown during the dominant growing season for each county. The column ?MAIN_CROP_DATE?, continued in the 2023 dataset, indicates the NDVI peak date for this main season crop. Asterisks (* or **) in attribute table indicates no data have been collected for that specific attribute.
+Prior to WY 2021 final mapping release, pasture areas that where mechanically harvested during a water year were classified as P6-Miscellaneous Grasses. Starting with the WY 2021 final mapping release and moving forward these harvested pasture areas are classified as P3-Mixed Pasture. 
+
+
+2023 STATEWIDE CROP MAPPING - PROVISIONAL Understanding the impacts of land use, crop location, acreage, and management practices on environmental attributes and resource management will be an integral step in the ability of Groundwater Sustainability Agencies (GSAs) to produce Groundwater Sustainability Plans (GSPs) and implement projects to attain sustainability. For these purposes, as well as many others, a spatial mapping base layer is essential for effective decision-making and other applications. The primary objective of this effort was to produce a comprehensive and accurate spatial land use database with overall accuracies exceeding 95% using remote sensing, statistical, and temporal analysis methods. This provisional metadata does not contain the full metadata per the California Department of Water Resources (DWR) Spatial Data Standards. DWR reviewed and revised the data in some cases. Detailed reviews and revisions of individual fields were determined by DWR Land Use staff in Regional Offices, therefore it is important to contact individual Senior Land Use Supervisors within Regional Offices for local details. For Northern Regional Office you may contact Tito Cervantes at Tito.Cervantes@water.ca.gov; North Central Regional Office, Jeff Smith at Jeff.A.Smith@water.ca.gov; South Central Regional Office, Steve Ewert at Steve.Ewert@water.ca.gov; and Southern Regional Office, Robert Fastenau at Robert.Fastenau@water.ca.gov. The associated data are considered DWR enterprise GIS data, which meet all appropriate requirements of the DWR Spatial Data Standards, specifically the DWR Spatial Data Standard version 3.5, dated March 22, 2023. This dataset was not produced by DWR. Data were originally developed and supplied by Land IQ, LLC, under contract to California Department of Water Resources. The official DWR GIS steward for the statewide compilation of this data is Bekele Temesgen, who may be contacted at 916-651-9679, or at Bekele.Temesgen@water.ca.gov. Comments, problems, improvements, updates, or suggestions should be forwarded to the official GIS steward as available and appropriate. Detailed compilation and reviews of Statewide Crop Mapping and metadata development were performed by DWR Land Use Unit staff, therefore you may forward your questions to Stanley Mubako, Stanley.Mubako@water.ca.gov, Jessica Vollmer, Jessica.Vollmer@water.ca.gov, Scott Hayes, Scott.Hayes@water.ca.gov, Jing Yuan, Jing.Yuan@water.ca.gov, Mohammad Mostafavi, Mohammad.Mostafavi@water.ca.gov, or LandUse@water.ca.gov. Provisional data use disclaimer: The provisional data is made available to provide immediate access for the convenience of interested persons. Importantly, land use classifications and field boundaries are not definitive and do not establish legal rights or define legal boundaries. While the Department believes the data to be reliable, the data is provisional and human or mechanical error remains a possibility. Therefore, the Department does not guarantee the accuracy, completeness, or timeliness of the information. Neither DWR nor any of the sources of the information shall be responsible for any errors or omissions, or for the use or results obtained from the use of this information.</abstract>
+  <keywords vocabulary="Search keys">
+    <keyword>PROVISIONAL</keyword>
+    <keyword>Imagery</keyword>
+    <keyword>Urban</keyword>
+    <keyword>Planning</keyword>
+    <keyword>Satellite imagery</keyword>
+    <keyword>Ground truth</keyword>
+    <keyword>Crop</keyword>
+    <keyword>Raster</keyword>
+    <keyword>Landsat</keyword>
+    <keyword>Land cover</keyword>
+    <keyword>Irrigated land</keyword>
+    <keyword>2023</keyword>
+    <keyword>Multispectral analysis</keyword>
+    <keyword>Vector</keyword>
+    <keyword>Digital imagery</keyword>
+    <keyword>Image classification</keyword>
+    <keyword>Aerial photography</keyword>
+    <keyword>Land use</keyword>
+    <keyword>Survey</keyword>
+    <keyword>Boundaries</keyword>
+    <keyword>Agriculture</keyword>
+    <keyword>State of California</keyword>
+    <keyword>DWR GIS Atlas</keyword>
+  </keywords>
+  <contact>
+    <contactAddress>
+      <type>postal</type>
+      <address>PO Box 942836 </address>
+      <city>Sacramento</city>
+      <administrativearea>CA</administrativearea>
+      <postalcode>94236-001</postalcode>
+      <country>US</country>
+    </contactAddress>
+    <name>Bekele Temesgen</name>
+    <organization>California Department of Water Resources </organization>
+    <position>Manager, Land and Water Use Section</position>
+    <voice>916-651-9679</voice>
+    <fax></fax>
+    <email>Bekele.Temesgen@water.ca.gov</email>
+    <role>Point of contact</role>
+  </contact>
+  <links/>
+  <fees></fees>
+  <rights>Land IQ, www.LandIQ.com, California Department of Water Resources, Division of Regional Assistance Regional Offices: Northern, North Central, South Central and Southern Regional Offices, and Water Use Efficiency Branch (Sacramento Headquarters).</rights>
+  <encoding></encoding>
+  <crs>
+    <spatialrefsys nativeFormat="Wkt">
+      <wkt>PROJCRS["NAD83 / UTM zone 10N",BASEGEOGCRS["NAD83",DATUM["North American Datum 1983",ELLIPSOID["GRS 1980",6378137,298.257222101,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],ID["EPSG",4269]],CONVERSION["UTM zone 10N",METHOD["Transverse Mercator",ID["EPSG",9807]],PARAMETER["Latitude of natural origin",0,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8801]],PARAMETER["Longitude of natural origin",-123,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8802]],PARAMETER["Scale factor at natural origin",0.9996,SCALEUNIT["unity",1],ID["EPSG",8805]],PARAMETER["False easting",500000,LENGTHUNIT["metre",1],ID["EPSG",8806]],PARAMETER["False northing",0,LENGTHUNIT["metre",1],ID["EPSG",8807]]],CS[Cartesian,2],AXIS["(E)",east,ORDER[1],LENGTHUNIT["metre",1]],AXIS["(N)",north,ORDER[2],LENGTHUNIT["metre",1]],USAGE[SCOPE["Engineering survey, topographic mapping."],AREA["North America - between 126°W and 120°W - onshore and offshore. Canada - British Columbia; Northwest Territories; Yukon. United States (USA) - California; Oregon; Washington."],BBOX[30.54,-126,81.8,-119.99]],ID["EPSG",26910]]</wkt>
+      <proj4>+proj=utm +zone=10 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
+      <srsid>2287</srsid>
+      <srid>26910</srid>
+      <authid>EPSG:26910</authid>
+      <description>NAD83 / UTM zone 10N</description>
+      <projectionacronym>utm</projectionacronym>
+      <ellipsoidacronym>EPSG:7019</ellipsoidacronym>
+      <geographicflag>false</geographicflag>
+    </spatialrefsys>
+  </crs>
+  <extent>
+    <spatial crs="EPSG:26910" dimensions="2" maxz="0" miny="32.54469999999999885" maxy="42.00450000000000017" minx="-124.37529999999999575" minz="0" maxx="-114.49160000000000537"/>
+    <temporal>
+      <period>
+        <start></start>
+        <end></end>
+      </period>
+    </temporal>
+  </extent>
+</qgis>
