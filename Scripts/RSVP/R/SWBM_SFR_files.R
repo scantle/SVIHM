@@ -75,6 +75,7 @@ process_sfr_inflows <- function(scen, stream_inflow_filename) {
 #'     \item{`non_irr`}{Data frame of irrigation-reserved inflows; same structure as `irr`.}
 #'   }
 #' @param percent Numeric in \[0,1\]; the same fraction of **each day's** flow to move.
+#' @param min_flow_regime Dataframe specifying the dates and flows of a minimum flow regime to be designated for non-irrigation flows.
 #' @param date_start Date or character; first day (inclusive) of curtailment window.
 #' @param date_end   Date or character; last day (inclusive) of curtailment window.
 #' @param streams Character vector of flow-column names to affect, or `"ALL"` (default)
@@ -94,13 +95,16 @@ process_sfr_inflows <- function(scen, stream_inflow_filename) {
 #'                                         date_start = "2021-09-10",
 #'                                         date_end = "2021-10-25")
 streamflow_curtailment <- function(flows,
-                                   percent,
+                                   percent = NULL, # percent curtailment
+                                   min_flow_regime = NULL, #min flows for all tribs
                                    date_start,
                                    date_end,
                                    streams = "ALL") {
-  # coerce dates
-  d1 <- as.Date(date_start)
-  d2 <- as.Date(date_end)
+
+  if( sum(is.null(percent), is.null(min_flow_regime)) %in% c(0,2)){
+    print("Must specify EITHER a percent OR a minimum flow regime basis for streamflow curtailment")
+    stop()
+  }
 
   # extract and ensure Date column
   irr     <- flows$irr
@@ -114,16 +118,49 @@ streamflow_curtailment <- function(flows,
     streams <- names(irr)[-1]
   }
 
-  # find rows in range
-  idx <- which(irr[[date_col]] >= d1 & irr[[date_col]] <= d2)
-  if (length(idx) == 0) return(flows)  # nothing to do
+  if(!is.null(percent)){
+    # coerce dates
+    d1 <- as.Date(date_start)
+    d2 <- as.Date(date_end)
 
-  # apply constant curtailment
-  for (col in streams) {
-    orig <- irr[idx, col]
-    redn <- orig * percent
-    irr[idx, col]     <- orig - redn
-    non_irr[idx, col] <- non_irr[idx, col] + redn
+    # find rows in range
+    idx <- which(irr[[date_col]] >= d1 & irr[[date_col]] <= d2)
+    if (length(idx) == 0) return(flows)  # nothing to do
+
+    # apply constant curtailment
+    for (col in streams) {
+      orig <- irr[idx, col]
+      redn <- orig * percent
+      irr[idx, col]     <- orig - redn
+      non_irr[idx, col] <- non_irr[idx, col] + redn
+    }
+
+  }
+
+  # CURRENTLY TROUBLESHOOTING
+  if(!is.null(min_flow_regime)){
+    # convert example dates in min_flow_regime to model-period time series
+    min_flow_alldates = data.frame(date = irr[[date_col]])
+    min_flow_alldates$month = month(min_flow_alldates$date)
+    min_flow_alldates$day = day(min_flow_alldates$date)
+
+    min_flow_regime$month = month(min_flow_regime$example_dates)
+    min_flow_regime$day = day(min_flow_regime$example_dates)
+    for(i in 1:length(streams)){ #currently assumes min-flow regime applies to all streams
+      stream = streams[i]
+      min_flow_alldates$newcol = NA
+      # aaah leap days
+      for(j in 1:nrow(min_flow_regime)){
+        date_j = min_flow_regime$example_dates[j]
+        date_picker = min_flow_alldates$month == month(date_j) & min_flow_alldates$day == day(date_j)
+        min_flow_alldates$newcol = min_flow_regime[date_picker,stream]
+      }
+      colnames(min_flow_alldates)[ncol(min_flow_alldates)] = stream
+
+    }
+
+    # Assign min(min_flow, irr) to non-irr
+    # subtract min flows from irr (or set to 0)
   }
 
   # return updated list
