@@ -6,11 +6,11 @@ library(RSVP)
 library(sf)
 
 # Settings // Paths
-model_output_dir <- "C:/Users/lelan/Box/Research/Scott Valley/Files Recieved/LWA_MFR_2025-04-11/"
+model_output_dir <- "C:/Users/lelan/Box/Research/Scott Valley/Models/PRMS/2025-09-25/output/"
+out_dir <- file.path(data_dir['input_files_dir','loc'],'PRMS')
 ref_dir <- "C:/Users/lelan/Box/Research/Scott Valley/Files Recieved/LWA_MFR_2025-04-11/"
 gis_dir <- 'C:/Users/lelan/Box/Research/Scott Valley/GIS'
 
-out_dir <- file.path(data_dir['input_files_dir','loc'],'PRMS_outputs_for_SWBM')
 dir.create(out_dir)
 
 origin_date <- as.Date('1990-09-30')  # Day zero
@@ -126,18 +126,24 @@ mfr_by_hru <- full_join(gw_mfr, hortn_mfr, by = c("Date", "HRU_ID"), suffix = c(
 # Remove data outside of model dates
 mfr_by_hru <- mfr_by_hru[mfr_by_hru$Date > origin_date,]
 
-# Map HRUs to catchments -------------------------------------------------------
+# Map cells to catchments -------------------------------------------------------
 prms_catchments <- read_sf(file.path(gis_dir,'PRMS','PRMS_Grid_ScottWatershedOutsideSVIHM_catchments.shp'))
 mf_catchments <- read_sf(file.path(gis_dir,'MODFLOW','grid_outmostcells_catchments.shp'))
+sfr_cells <- read.table(file.path(data_dir['ref_data_dir','loc'], 'SFR_network_template.txt'), skip = 1,
+                        col.names = c('lay','row','column','seg','rch','len','elev','slope','thk','cond'))
 
 cell_to_subid <- mf_catchments %>%
   st_drop_geometry() %>%
   select(row, column, SubId) %>%
   arrange(SubId, row, column)
 
-write.table(cell_to_subid, file.path(out_dir, "modflow_cell_to_catchment.txt"), row.names = F, quote = F)
+# Remove any (row,column) that appear in the SFR cells list
+cell_to_subid_no_sfr <- cell_to_subid %>%
+  anti_join(sfr_cells %>% select(row, column), by = c("row", "column"))
 
-# Map cells to catchments -------------------------------------------------
+write.table(cell_to_subid_no_sfr, file.path(out_dir, "modflow_cell_to_catchment.txt"), row.names = F, quote = F)
+
+# Map HRUs to catchments -------------------------------------------------
 
 # Drop geometry and keep HRU_ID + SubID
 hru_to_subid <- prms_catchments %>%

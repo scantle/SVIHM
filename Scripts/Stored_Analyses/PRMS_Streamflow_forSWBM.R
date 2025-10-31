@@ -6,9 +6,9 @@ library(dplyr)
 
 #-------------------------------------------------------------------------------------------------#
 #-- Settings
-model_output_dir <- "C:/Users/lelan/Box/Research/Scott Valley/Models/PRMS/2025-04-29/output/"
+model_output_dir <- "C:/Users/lelan/Box/Research/Scott Valley/Models/PRMS/2025-09-25/output/"
 update_dir <- latest_dir(data_dir['update_dir','loc'])
-out_dir <- file.path(data_dir['input_files_dir','loc'],'PRMS_outputs_for_SWBM')
+out_dir <- file.path(data_dir['input_files_dir','loc'],'PRMS')
 plot_dir <- file.path(out_dir, 'Plots')
 
 seg_file <- 'seg_outflow.csv'
@@ -22,7 +22,7 @@ end_year   <- as.numeric(format(Sys.Date(), "%Y"))  # Assumes current year
 
 model_start_date <- get_model_start(start_year)
 #model_end_date <- as.Date(floor_date(Sys.Date(), 'month')-1)
-model_end_date <- as.Date("2023-09-30")
+model_end_date <- as.Date("2025-08-31")
 
 num_stress_periods <- calc_num_stress_periods(model_start_date, model_end_date)
 num_days <- days_in_month_diff(model_start_date, model_end_date)  # current setup: days = time steps
@@ -64,7 +64,7 @@ prms$Date <- as.Date(prms$Date)
 
 #-------------------------------------------------------------------------------------------------#
 #-- Read in observed gauge data
-daily_all <- read_gauge_daily_data()
+daily_all <- read_gauge_daily_data(stream_metadata)
 
 #-------------------------------------------------------------------------------------------------#
 
@@ -146,37 +146,6 @@ prms_wobs <- setNames(prms_wobs, streams)
 # `tribs_prms` converts from AF/day to m3/day
 write_trib_file(prms_wobs, output_dir = out_dir,filename = 'daily_tributary_streamflow_prms.txt',
                 start_date=model_start_date, end_date=model_end_date, monthly = F)
-
-#-------------------------------------------------------------------------------------------------#
-
-# Generate various SWBM trib inputs ---------------------------------------
-
-subws_inflow_filename = file.path(out_dir,"daily_tributary_streamflow_prms.txt")
-subws_irr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
-                                         stream_inflow_filename = subws_inflow_filename,
-                                         avail_for_irr = T,
-                                         scenario_id = current_scenario)
-subws_nonirr_inflows <- process_sfr_inflows(model_start_date, model_end_date,
-                                            stream_inflow_filename = subws_inflow_filename,
-                                            avail_for_irr = F,
-                                            scenario_id = current_scenario)
-
-# Move water to non-irr to enforce SW curtailments (also in curtailment file, but with slightly different dates for GW)
-
-# 2021
-subws_nonirr_inflows <- move_inflows(subws_nonirr_inflows, subws_irr_inflows, date_start = '2021-09-10', date_end = '2021-10-25')
-subws_irr_inflows <- set_inflows(subws_irr_inflows, date_start = '2021-09-10', date_end = '2021-10-25', value = 0.0)
-
-# 2022
-subws_nonirr_inflows <- move_inflows(subws_nonirr_inflows, subws_irr_inflows, date_start = '2022-07-01', date_end = '2022-12-27')
-subws_irr_inflows <- set_inflows(subws_irr_inflows, date_start = '2022-07-01', date_end = '2022-12-27', value = 0.0)
-
-# Write it out
-write_SWBM_SFR_inflow_files(subws_irr_inflows, out_dir, "subwatershed_irrigation_inflows_prms.txt")
-write_SWBM_SFR_inflow_files(subws_nonirr_inflows, out_dir, "subwatershed_nonirrigation_inflows_prms.txt")
-
-# Write SFR_inflow_segments file
-write_SWBM_SFR_segment_file(out_dir)
 
 #-------------------------------------------------------------------------------------------------#
 

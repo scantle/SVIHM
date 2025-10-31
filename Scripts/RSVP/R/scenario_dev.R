@@ -86,7 +86,7 @@ scenario_setup <- function(scen, start_year=1991) {
 
     # Setup Dates
     scen$start_date <- get_model_start(start_year)
-    scen$end_date <- as.Date('2023-09-30')
+    scen$end_date <- as.Date('2025-08-31')
   }
   # Final temporal discretization calcs
   scen$num_stress_periods <- calc_num_stress_periods(scen$start_date, scen$end_date)
