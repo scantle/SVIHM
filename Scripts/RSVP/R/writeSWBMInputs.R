@@ -1883,6 +1883,14 @@ create_MAR_depth_df <- function(start_date, end_date, mar_scenario) {
     # Remove rows in mar_df that match the Stress_Periods, then combine
     mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar24$Stress_Period),]
     mar_df <- rbind(mar_df, mar24)
+
+    # Read in 2025 MAR (from Shubham's 2026 SVIHM updates)
+    mar25 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_25basecase.csv'), header=T)
+    mar25$Stress_Period <- as.Date(mar25$Stress_Period)
+    mar25 <- mar25[mar25$Stress_Period >= start_date & mar25$Stress_Period <= end_date,]  # Model may not cover the whole water year
+
+    mar_df <- mar_df[!mar_df$Stress_Period %in% c(mar25$Stress_Period),]
+    mar_df <- rbind(mar_df, mar25)
   } else if (mar_scenario=='maxMAR_fields24_2024only') {
     # Read in 2024 MAR (see .\Scripts\Stored_Analyses\2024_MAR.R)
     mar24 <- read.table(file.path(data_dir["ref_data_dir","loc"], 'MAR_24max.csv'), header=T)
