@@ -15,7 +15,22 @@ complete_ts(
 )
 }
 \arguments{
-\item{keep_col_order}{}
+\item{df}{Dataframe of time series data}
+
+\item{date_col}{Column with Date-type values (default: 'Date')}
+
+\item{by}{Interval of the complete series, see seq.Date argument "by" (default: "month")}
+
+\item{start_date}{First date of complete series (optional, default: earliest date in df)}
+
+\item{end_date}{Last date of complete series (optional, default: latest date in df)}
+
+\item{drop_extra}{T/F drop rows outside of start_date and end_date (default: TRUE)}
+
+\item{keep_col_order}{T/F keep original column order of df (default: FALSE)}
+}
+\value{
+df merged onto complete date sequence, NA where data is missing
 }
 \description{
 Complete time series by filling with NA values

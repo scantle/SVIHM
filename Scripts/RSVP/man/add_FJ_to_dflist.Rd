@@ -7,7 +7,14 @@
 add_FJ_to_dflist(gaugelist, FJ_id = 1, ...)
 }
 \arguments{
-\item{FJ_id}{}
+\item{gaugelist}{List of standardized gauge dataframes, including FJ}
+
+\item{FJ_id}{Index of FJ in gaugelist (default: 1)}
+
+\item{...}{further arguments passed to merge}
+}
+\value{
+List of tributary dataframes merged with FJ by Date (suffixes _trib, _FJ), FJ removed
 }
 \description{
 Add FJ (standardized) Streamflow to dataframe to use as regression dependant variable

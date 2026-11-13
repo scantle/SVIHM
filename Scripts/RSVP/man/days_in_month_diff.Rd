@@ -7,7 +7,12 @@
 days_in_month_diff(start, end)
 }
 \arguments{
-\item{end}{}
+\item{start}{Date of first month}
+
+\item{end}{Date in last month}
+}
+\value{
+Numeric vector of the number of days in each month
 }
 \description{
 Days in each month between two dates
